@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrderBean - 커피 주문</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>☕ OrderBean</h1>
+        <nav>
+            <a href="/">메뉴</a>
+            <a href="/orders">주문 내역</a>
+        </nav>
+    </header>
+
+    <main>
+        <section id="menu-section">
+            <h2>메뉴</h2>
+            <div id="menu-list" class="menu-grid">
+                <!-- 메뉴가 동적으로 로드됩니다 -->
+            </div>
+        </section>
+
+        <section id="order-section" class="hidden">
+            <h2>주문하기</h2>
+            <div id="order-form">
+                <div id="selected-menu"></div>
+                <div id="options-form"></div>
+                <div id="order-summary"></div>
+                <button id="submit-order" class="btn-primary">주문하기</button>
+                <button id="cancel-order" class="btn-secondary">취소</button>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 OrderBean. All rights reserved.</p>
+    </footer>
+
+    <script src="/js/app.js"></script>
+    <script src="/js/menu.js"></script>
+    <script src="/js/order.js"></script>
+</body>
+</html>
+

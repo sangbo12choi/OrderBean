@@ -1,0 +1,37 @@
+{
+  "name": "orderbean",
+  "version": "1.0.0",
+  "description": "간편 커피 주문 웹서비스 - 바쁜 직장인과 단골 고객을 위한 사전 주문 및 원터치 주문 솔루션",
+  "main": "backend/server.js",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "nodemon backend/server.js",
+    "build": "echo 'Build process not implemented yet'",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "keywords": [
+    "coffee",
+    "order",
+    "cafe",
+    "rest-api"
+  ],
+  "author": "상보 최",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "mysql2": "^3.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.3"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}
+

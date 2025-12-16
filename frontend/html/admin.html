@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrderBean - 관리자</title>
+    <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+    <header>
+        <h1>☕ OrderBean - 관리자</h1>
+        <nav>
+            <a href="/">고객 페이지</a>
+            <a href="/admin">관리자</a>
+        </nav>
+    </header>
+
+    <main>
+        <section id="admin-section">
+            <h2>관리자 페이지</h2>
+            
+            <div class="admin-tabs">
+                <button class="tab-btn active" data-tab="menus">메뉴 관리</button>
+                <button class="tab-btn" data-tab="orders">주문 관리</button>
+            </div>
+
+            <!-- 메뉴 관리 탭 -->
+            <div id="menus-tab" class="tab-content active">
+                <h3>메뉴 관리</h3>
+                <div id="menu-form">
+                    <h4>메뉴 등록</h4>
+                    <form id="create-menu-form">
+                        <input type="text" id="menu-name" placeholder="메뉴 이름" required>
+                        <input type="number" id="menu-price" placeholder="가격" min="0" required>
+                        <textarea id="menu-options" placeholder='옵션 (JSON 배열, 예: ["HOT", "ICE", "SIZE_M"])'></textarea>
+                        <button type="submit" class="btn-primary">등록</button>
+                    </form>
+                </div>
+                <div id="menu-list-admin">
+                    <!-- 메뉴 목록이 동적으로 로드됩니다 -->
+                </div>
+            </div>
+
+            <!-- 주문 관리 탭 -->
+            <div id="orders-tab" class="tab-content">
+                <h3>주문 관리</h3>
+                <div id="orders-list-admin">
+                    <!-- 주문 목록이 동적으로 로드됩니다 -->
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 OrderBean. All rights reserved.</p>
+    </footer>
+
+    <script src="/js/app.js"></script>
+    <script src="/js/admin.js"></script>
+</body>
+</html>
+
