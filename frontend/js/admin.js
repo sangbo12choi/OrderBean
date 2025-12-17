@@ -1,5 +1,202 @@
 // 관리자 관련 기능
 
+// 전역 변수
+let inventoryData = {}; // 재고 데이터 캐시
+let menusCache = {}; // 메뉴 데이터 캐시
+
+// 페이지 로드 시 초기화
+if (document.getElementById('admin-section')) {
+  initAdminDashboard();
+}
+
+// 관리자 대시보드 초기화
+function initAdminDashboard() {
+  // 대시보드 통계 로드
+  loadDashboardStats();
+  
+  // 재고 현황 로드
+  loadInventory();
+  
+  // 주문 현황 로드
+  loadOrdersAdmin();
+  
+  // 통계 카드 클릭 이벤트
+  initStatCards();
+  
+  // 탭 초기화
+  initTabs();
+  
+  // 메뉴 등록 폼 이벤트
+  const createMenuForm = document.getElementById('create-menu-form');
+  if (createMenuForm) {
+    createMenuForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      createMenu();
+    });
+  }
+  
+  // 주기적으로 데이터 새로고침 (5초마다)
+  setInterval(() => {
+    loadDashboardStats();
+    loadOrdersAdmin();
+  }, 5000);
+}
+
+// 대시보드 통계 로드
+async function loadDashboardStats() {
+  try {
+    const data = await api.get('/orders');
+    const orders = data.orders || [];
+    
+    const stats = {
+      total: orders.length,
+      pending: orders.filter(o => o.status === '접수').length,
+      processing: orders.filter(o => o.status === '제조중').length,
+      completed: orders.filter(o => o.status === '완료').length
+    };
+    
+    updateDashboardStats(stats);
+  } catch (error) {
+    console.error('Error loading dashboard stats:', error);
+  }
+}
+
+// 대시보드 통계 업데이트
+function updateDashboardStats(stats) {
+  document.getElementById('stat-total').textContent = stats.total;
+  document.getElementById('stat-pending').textContent = stats.pending;
+  document.getElementById('stat-processing').textContent = stats.processing;
+  document.getElementById('stat-completed').textContent = stats.completed;
+}
+
+// 통계 카드 클릭 이벤트 초기화
+function initStatCards() {
+  const statCards = document.querySelectorAll('.stat-card');
+  statCards.forEach(card => {
+    card.addEventListener('click', () => {
+      const status = card.dataset.status;
+      filterOrdersByStatus(status);
+    });
+  });
+}
+
+// 주문 상태별 필터링
+function filterOrdersByStatus(status) {
+  const ordersList = document.getElementById('orders-list-admin');
+  const allOrders = Array.from(ordersList.children);
+  
+  if (status === 'all') {
+    allOrders.forEach(order => {
+      order.style.display = 'block';
+    });
+  } else {
+    allOrders.forEach(order => {
+      const orderStatus = order.dataset.orderStatus;
+      order.style.display = orderStatus === status ? 'block' : 'none';
+    });
+  }
+}
+
+// 재고 현황 로드
+async function loadInventory() {
+  try {
+    const menuData = await api.get('/menus');
+    const menus = menuData.menus || [];
+    
+    // 메뉴 캐시 저장
+    menus.forEach(menu => {
+      menusCache[menu.menu_id] = menu;
+    });
+    
+    // 재고 데이터 초기화 (실제로는 서버에서 가져와야 함)
+    menus.forEach(menu => {
+      if (!inventoryData[menu.menu_id]) {
+        inventoryData[menu.menu_id] = {
+          menu_id: menu.menu_id,
+          menu_name: menu.name,
+          stock: 10 // 기본 재고
+        };
+      }
+    });
+    
+    displayInventory(menus);
+  } catch (error) {
+    console.error('Error loading inventory:', error);
+    showError('재고 정보를 불러오는 중 오류가 발생했습니다.');
+  }
+}
+
+// 재고 현황 표시
+function displayInventory(menus) {
+  const inventoryList = document.getElementById('inventory-list');
+  if (!inventoryList) return;
+  
+  if (menus.length === 0) {
+    inventoryList.innerHTML = '<p>등록된 메뉴가 없습니다.</p>';
+    return;
+  }
+  
+  inventoryList.innerHTML = menus.map(menu => {
+    const inventory = inventoryData[menu.menu_id] || { stock: 10 };
+    const stock = inventory.stock;
+    const lowStock = stock < 5;
+    
+    // 메뉴명에 온도 표시
+    const options = menu.options || [];
+    const hasHot = options.includes('HOT');
+    const hasIce = options.includes('ICE');
+    let displayName = menu.name;
+    if (hasHot && hasIce) {
+      displayName = `${menu.name}(ICE)`;
+    } else if (hasHot) {
+      displayName = `${menu.name}(HOT)`;
+    } else if (hasIce) {
+      displayName = `${menu.name}(ICE)`;
+    }
+    
+    return `
+      <div class="inventory-card ${lowStock ? 'low-stock' : ''}" data-menu-id="${menu.menu_id}">
+        <div class="inventory-card-name">${displayName}</div>
+        <div class="inventory-card-stock">${stock}개</div>
+        <div class="inventory-card-actions">
+          <button class="inventory-btn decrease" onclick="updateInventory(${menu.menu_id}, -1)" ${stock <= 0 ? 'disabled' : ''}>-</button>
+          <button class="inventory-btn increase" onclick="updateInventory(${menu.menu_id}, 1)">+</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// 재고 수량 업데이트
+async function updateInventory(menuId, change) {
+  if (!inventoryData[menuId]) {
+    inventoryData[menuId] = { menu_id: menuId, stock: 10 };
+  }
+  
+  const newStock = inventoryData[menuId].stock + change;
+  
+  if (newStock < 0) {
+    showError('재고는 0보다 작을 수 없습니다.');
+    return;
+  }
+  
+  try {
+    // 실제로는 서버 API 호출 필요
+    // await api.put(`/admin/inventory/${menuId}`, { stock: newStock });
+    
+    inventoryData[menuId].stock = newStock;
+    
+    // UI 업데이트
+    const menuData = await api.get('/menus');
+    displayInventory(menuData.menus);
+    
+    showSuccess(`재고가 ${change > 0 ? '증가' : '감소'}되었습니다.`);
+  } catch (error) {
+    console.error('Error updating inventory:', error);
+    showError('재고 업데이트 중 오류가 발생했습니다.');
+  }
+}
+
 // 탭 전환
 function initTabs() {
   const tabButtons = document.querySelectorAll('.tab-btn');
@@ -15,13 +212,14 @@ function initTabs() {
 
       // 선택된 탭 활성화
       btn.classList.add('active');
-      document.getElementById(`${targetTab}-tab`).classList.add('active');
+      const tabContent = document.getElementById(`${targetTab}-tab`);
+      if (tabContent) {
+        tabContent.classList.add('active');
+      }
 
       // 탭별 데이터 로드
       if (targetTab === 'menus') {
         loadMenusAdmin();
-      } else if (targetTab === 'orders') {
-        loadOrdersAdmin();
       }
     });
   });
@@ -118,9 +316,18 @@ async function deleteMenu(menuId) {
 // 주문 관리 - 주문 목록 로드
 async function loadOrdersAdmin() {
   try {
+    // 메뉴 정보가 없으면 먼저 로드
+    if (Object.keys(menusCache).length === 0) {
+      const menuData = await api.get('/menus');
+      menuData.menus.forEach(menu => {
+        menusCache[menu.menu_id] = menu;
+      });
+    }
+    
     const data = await api.get('/orders');
     displayOrdersAdmin(data.orders);
   } catch (error) {
+    console.error('Error loading orders:', error);
     showError('주문 목록을 불러오는 중 오류가 발생했습니다.');
   }
 }
@@ -135,85 +342,135 @@ function displayOrdersAdmin(orders) {
     return;
   }
 
-  ordersList.innerHTML = orders.map(order => {
+  // 주문을 시간순으로 정렬 (최신순)
+  const sortedOrders = [...orders].sort((a, b) => {
+    return new Date(b.created_at) - new Date(a.created_at);
+  });
+
+  ordersList.innerHTML = sortedOrders.map(order => {
+    // 주문 날짜/시간 포맷팅
+    const orderDate = new Date(order.created_at);
+    const dateStr = orderDate.toLocaleDateString('ko-KR', { 
+      month: 'long', 
+      day: 'numeric' 
+    });
+    const timeStr = orderDate.toLocaleTimeString('ko-KR', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    });
+    
+    // 주문 항목 표시
     const itemsHtml = order.items.map(item => {
-      const optionsText = Object.entries(item.options || {})
-        .map(([key, value]) => `${key}: ${value}`)
-        .join(', ');
+      const menu = menusCache[item.menu_id];
+      const menuName = menu ? menu.name : `메뉴 ID: ${item.menu_id}`;
+      const options = item.options || {};
+      
+      // 옵션 텍스트 생성
+      const extraOptions = [];
+      if (options.temperature) {
+        extraOptions.push(options.temperature);
+      }
+      if (options.shot) {
+        extraOptions.push('샷 추가');
+      }
+      if (options.syrup) {
+        extraOptions.push('시럽 추가');
+      }
+      
+      const optionsText = extraOptions.length > 0 ? ` (${extraOptions.join(', ')})` : '';
+      const quantity = item.quantity || 1;
+      const itemPrice = menu ? menu.price : (item.price || 4000);
+      
       return `
-        <div class="order-item">
-          <strong>메뉴 ID:</strong> ${item.menu_id}
-          ${optionsText ? `<br><strong>옵션:</strong> ${optionsText}` : ''}
+        <div class="order-item-admin">
+          ${menuName}${optionsText} x ${quantity}
         </div>
       `;
     }).join('');
 
-    const statusOptions = ['접수', '제조중', '완료'];
-    const statusSelect = statusOptions.map(status => 
-      `<option value="${status}" ${order.status === status ? 'selected' : ''}>${status}</option>`
-    ).join('');
+    // 총 가격 계산
+    const totalPrice = order.total_price || order.items.reduce((sum, item) => {
+      const menu = menusCache[item.menu_id];
+      const itemPrice = menu ? menu.price : (item.price || 4000);
+      const quantity = item.quantity || 1;
+      return sum + itemPrice * quantity;
+    }, 0);
+
+    // 상태별 버튼 텍스트 및 클래스
+    let buttonText = '주문 접수';
+    let buttonClass = 'order-action-btn';
+    
+    if (order.status === '접수') {
+      buttonText = '제조 시작';
+      buttonClass += ' processing';
+    } else if (order.status === '제조중') {
+      buttonText = '제조 완료';
+      buttonClass += ' completed';
+    } else if (order.status === '완료') {
+      buttonText = '완료됨';
+      buttonClass += ' completed';
+    }
 
     return `
-      <div class="order-card">
-        <div class="order-header">
+      <div class="order-card-admin" data-order-status="${order.status}">
+        <div class="order-card-admin-header">
           <div>
-            <span class="order-id">주문 #${order.order_id}</span>
-            <span style="margin-left: 1rem; color: #666;">
-              사용자 ID: ${order.user_id}
-            </span>
-            <span style="margin-left: 1rem; color: #666;">
-              ${new Date(order.created_at).toLocaleString('ko-KR')}
-            </span>
+            <div class="order-date-time">${dateStr} ${timeStr}</div>
+            <div class="order-items-list">
+              ${itemsHtml}
+            </div>
+            <div class="order-price">${totalPrice.toLocaleString()}원</div>
           </div>
           <div>
-            <select id="status-select-${order.order_id}" class="order-status-select">
-              ${statusSelect}
-            </select>
-            <button class="btn-primary" onclick="updateOrderStatus(${order.order_id})">
-              상태 변경
-            </button>
+            ${order.status !== '완료' 
+              ? `<button class="${buttonClass}" onclick="updateOrderStatus(${order.order_id}, '${getNextStatus(order.status)}')">${buttonText}</button>`
+              : '<span style="color: #27ae60; font-weight: bold;">완료됨</span>'
+            }
           </div>
-        </div>
-        <div class="order-items">
-          ${itemsHtml}
         </div>
       </div>
     `;
   }).join('');
 }
 
-// 주문 상태 변경
-async function updateOrderStatus(orderId) {
-  const select = document.getElementById(`status-select-${orderId}`);
-  const status = select.value;
-
-  try {
-    await api.put(`/admin/orders/${orderId}/status`, { status });
-    showSuccess('주문 상태가 변경되었습니다.');
-    loadOrdersAdmin();
-  } catch (error) {
-    showError('주문 상태 변경 중 오류가 발생했습니다.');
-  }
+// 다음 상태 반환
+function getNextStatus(currentStatus) {
+  const statusFlow = {
+    '접수': '제조중',
+    '제조중': '완료',
+    '완료': '완료'
+  };
+  return statusFlow[currentStatus] || '접수';
 }
 
-// 페이지 로드 시 초기화
-if (document.getElementById('admin-section')) {
-  initTabs();
-  
-  // 메뉴 등록 폼 이벤트
-  const createMenuForm = document.getElementById('create-menu-form');
-  if (createMenuForm) {
-    createMenuForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      createMenu();
-    });
+// 주문 상태 변경
+async function updateOrderStatus(orderId, newStatus) {
+  if (!newStatus) {
+    // 기존 방식 지원 (select에서 가져오기)
+    const select = document.getElementById(`status-select-${orderId}`);
+    if (select) {
+      newStatus = select.value;
+    } else {
+      showError('주문 상태를 선택해주세요.');
+      return;
+    }
   }
 
-  // 초기 탭 데이터 로드
-  loadMenusAdmin();
+  try {
+    await api.put(`/admin/orders/${orderId}/status`, { status: newStatus });
+    showSuccess('주문 상태가 변경되었습니다.');
+    
+    // 대시보드 통계 및 주문 목록 새로고침
+    loadDashboardStats();
+    loadOrdersAdmin();
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    showError('주문 상태 변경 중 오류가 발생했습니다.');
+  }
 }
 
 // 전역 함수로 export (HTML에서 직접 호출하기 위해)
 window.deleteMenu = deleteMenu;
 window.updateOrderStatus = updateOrderStatus;
+window.updateInventory = updateInventory;
 
