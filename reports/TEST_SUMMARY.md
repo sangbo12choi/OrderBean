@@ -204,3 +204,4 @@ npm run test:coverage
 
 **리포트 생성 시간**: 2025-11-01
 
+## Green 단계 시작 ##
