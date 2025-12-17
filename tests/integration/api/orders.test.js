@@ -1,20 +1,37 @@
 const request = require('supertest');
 const app = require('../../../backend/server');
 
+// 모킹 설정
+jest.mock('../../../backend/models/Order');
+jest.mock('../../../backend/models/OrderItem');
+
+const Order = require('../../../backend/models/Order');
+const OrderItem = require('../../../backend/models/OrderItem');
+
 describe('Order API Integration Tests', () => {
   describe('POST /api/orders', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+    });
+
     // ============================================
-    // 시나리오 1: HTTP 응답 기본 검증
+    // 시나리오 1: HTTP 응답 기본 검증 (모킹 사용)
     // ============================================
 
     // TC-O1.1: HTTP 상태 코드 검증 (성공 케이스)
     it('TC-O1.1: should return HTTP 201 status code on success', async () => {
-      // 더미 데이터 모드에서는 주문 생성이 불가능하므로 스킵
-      const { USE_DUMMY_DATA } = require('../../../backend/config/database');
-      if (USE_DUMMY_DATA) {
-        console.log('Skipping order creation test in dummy data mode');
-        return;
-      }
+      const mockOrderId = 1;
+      const mockOrder = {
+        order_id: mockOrderId,
+        user_id: 1,
+        status: '접수',
+        created_at: new Date().toISOString()
+      };
+
+      // 모킹 설정
+      Order.create.mockResolvedValue(mockOrderId);
+      OrderItem.createMultiple.mockResolvedValue(undefined);
+      Order.findById.mockResolvedValue(mockOrder);
 
       const orderData = {
         user_id: 1,
@@ -34,15 +51,25 @@ describe('Order API Integration Tests', () => {
         .send(orderData);
 
       expect(response.status).toBe(201);
+      expect(Order.create).toHaveBeenCalledWith({ user_id: 1, status: '접수' });
+      expect(OrderItem.createMultiple).toHaveBeenCalled();
+      expect(Order.findById).toHaveBeenCalledWith(mockOrderId);
     });
 
-    // TC-O1.2: 응답 본문 구조 검증 (성공 케이스)
-    it('TC-O1.2: should return response with correct structure on success', async () => {
-      const { USE_DUMMY_DATA } = require('../../../backend/config/database');
-      if (USE_DUMMY_DATA) {
-        console.log('Skipping order creation test in dummy data mode');
-        return;
-      }
+    // TC-O1.2.1: 응답 본문 타입 검증
+    it('TC-O1.2.1: should return response body as object with correct Content-Type', async () => {
+      const mockOrderId = 1;
+      const mockOrder = {
+        order_id: mockOrderId,
+        user_id: 1,
+        status: '접수',
+        created_at: new Date().toISOString()
+      };
+
+      // 모킹 설정
+      Order.create.mockResolvedValue(mockOrderId);
+      OrderItem.createMultiple.mockResolvedValue(undefined);
+      Order.findById.mockResolvedValue(mockOrder);
 
       const orderData = {
         user_id: 1,
@@ -67,11 +94,101 @@ describe('Order API Integration Tests', () => {
       
       // Content-Type 검증
       expect(response.headers['content-type']).toMatch(/application\/json/);
-      
+    });
+
+    // TC-O1.2.2: 필수 필드 존재 확인
+    it('TC-O1.2.2: should return response with required fields', async () => {
+      const mockOrderId = 1;
+      const mockOrder = {
+        order_id: mockOrderId,
+        user_id: 1,
+        status: '접수',
+        created_at: new Date().toISOString()
+      };
+
+      // 모킹 설정
+      Order.create.mockResolvedValue(mockOrderId);
+      OrderItem.createMultiple.mockResolvedValue(undefined);
+      Order.findById.mockResolvedValue(mockOrder);
+
+      const orderData = {
+        user_id: 1,
+        items: [
+          {
+            menu_id: 1,
+            options: {
+              temperature: 'HOT',
+              size: 'SIZE_M'
+            }
+          }
+        ]
+      };
+
+      const response = await request(app)
+        .post('/api/orders')
+        .send(orderData)
+        .expect(201);
+
       // 필수 필드 존재 확인
       expect(response.body).toHaveProperty('order_id');
       expect(response.body).toHaveProperty('status');
       expect(response.body).toHaveProperty('created_at');
+    });
+
+    // TC-O1.2.3: 필드 값 검증
+    it('TC-O1.2.3: should return response with valid field values', async () => {
+      const mockOrderId = 1;
+      const mockCreatedAt = new Date().toISOString();
+      const mockOrder = {
+        order_id: mockOrderId,
+        user_id: 1,
+        status: '접수',
+        created_at: mockCreatedAt
+      };
+
+      // 모킹 설정
+      Order.create.mockResolvedValue(mockOrderId);
+      OrderItem.createMultiple.mockResolvedValue(undefined);
+      Order.findById.mockResolvedValue(mockOrder);
+
+      const orderData = {
+        user_id: 1,
+        items: [
+          {
+            menu_id: 1,
+            options: {
+              temperature: 'HOT',
+              size: 'SIZE_M'
+            }
+          }
+        ]
+      };
+
+      const response = await request(app)
+        .post('/api/orders')
+        .send(orderData)
+        .expect(201);
+
+      // order_id는 숫자 타입이어야 함
+      expect(typeof response.body.order_id).toBe('number');
+      
+      // order_id는 양수여야 함
+      expect(response.body.order_id).toBeGreaterThan(0);
+      
+      // order_id는 정수여야 함
+      expect(Number.isInteger(response.body.order_id)).toBe(true);
+      
+      // status는 '접수'여야 함
+      expect(response.body.status).toBe('접수');
+      expect(typeof response.body.status).toBe('string');
+      
+      // created_at은 문자열이어야 함
+      expect(typeof response.body.created_at).toBe('string');
+      
+      // created_at은 유효한 날짜 형식이어야 함
+      const date = new Date(response.body.created_at);
+      expect(date instanceof Date).toBe(true);
+      expect(!isNaN(date.getTime())).toBe(true);
     });
 
     // ============================================
@@ -213,6 +330,12 @@ describe('Order API Integration Tests', () => {
 
     // TC-O3.3: menu_id 필수 필드 검증
     it('TC-O3.3: should validate menu_id as required field', async () => {
+      const mockOrderId = 1;
+      
+      // 모킹 설정 - menu_id가 없으면 OrderItem.createMultiple에서 에러 발생 시뮬레이션
+      Order.create.mockResolvedValue(mockOrderId);
+      OrderItem.createMultiple.mockRejectedValue(new Error('menu_id is required'));
+
       const orderData = {
         user_id: 1,
         items: [
@@ -402,6 +525,14 @@ describe('Order API Integration Tests', () => {
   });
 
   describe('GET /api/orders', () => {
+    beforeEach(() => {
+      jest.clearAllMocks();
+      // GET 테스트를 위한 기본 모킹 설정
+      Order.findAll.mockResolvedValue([]);
+      Order.findByUserId.mockResolvedValue([]);
+      OrderItem.findByOrderId.mockResolvedValue([]);
+    });
+
     // ============================================
     // 시나리오 6: HTTP 응답 기본 검증
     // ============================================
