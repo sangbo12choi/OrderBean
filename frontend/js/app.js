@@ -1,13 +1,12 @@
-// API Base URL
-const API_BASE_URL = 'http://localhost:3000/api';
-
-// auth.js가 로드되기 전에 API_BASE_URL이 정의되어야 함
-// auth.js에서 이 변수를 사용함
+// API Base URL 헬퍼 함수
+function getApiBaseUrl() {
+  return typeof Config !== 'undefined' ? Config.API.BASE_URL : 'http://localhost:3000/api';
+}
 
 // Utility Functions
 const api = {
   async get(url) {
-    const response = await fetch(`${API_BASE_URL}${url}`);
+    const response = await fetch(`${getApiBaseUrl()}${url}`);
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
@@ -15,7 +14,7 @@ const api = {
   },
 
   async post(url, data) {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
+    const response = await fetch(`${getApiBaseUrl()}${url}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -29,7 +28,7 @@ const api = {
   },
 
   async put(url, data) {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
+    const response = await fetch(`${getApiBaseUrl()}${url}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -43,7 +42,7 @@ const api = {
   },
 
   async delete(url) {
-    const response = await fetch(`${API_BASE_URL}${url}`, {
+    const response = await fetch(`${getApiBaseUrl()}${url}`, {
       method: 'DELETE',
     });
     if (!response.ok) {

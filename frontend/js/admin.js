@@ -1,5 +1,20 @@
 // 관리자 관련 기능
 
+// 설정 값 헬퍼 함수들
+function getConfigValue(path, defaultValue) {
+  if (typeof Config === 'undefined') return defaultValue;
+  const keys = path.split('.');
+  let value = Config;
+  for (const key of keys) {
+    if (value && typeof value === 'object' && key in value) {
+      value = value[key];
+    } else {
+      return defaultValue;
+    }
+  }
+  return value;
+}
+
 // 재고 데이터 관리 모듈 (모듈 패턴)
 const InventoryManager = (function() {
   let inventoryData = {}; // private 변수
@@ -7,12 +22,13 @@ const InventoryManager = (function() {
   return {
     // 재고 데이터 초기화
     init(menus) {
+      const defaultStock = getConfigValue('INVENTORY.DEFAULT_STOCK', 10);
       menus.forEach(menu => {
         if (!inventoryData[menu.menu_id]) {
           inventoryData[menu.menu_id] = {
             menu_id: menu.menu_id,
             menu_name: menu.name,
-            stock: 10 // 기본 재고
+            stock: defaultStock
           };
         }
       });
@@ -20,7 +36,8 @@ const InventoryManager = (function() {
 
     // 재고 데이터 가져오기
     get(menuId) {
-      return inventoryData[menuId] || { stock: 10 };
+      const defaultStock = getConfigValue('INVENTORY.DEFAULT_STOCK', 10);
+      return inventoryData[menuId] || { stock: defaultStock };
     },
 
     // 재고 데이터 설정
@@ -30,8 +47,9 @@ const InventoryManager = (function() {
 
     // 재고 수량 업데이트
     updateStock(menuId, change) {
+      const defaultStock = getConfigValue('INVENTORY.DEFAULT_STOCK', 10);
       if (!inventoryData[menuId]) {
-        inventoryData[menuId] = { menu_id: menuId, stock: 10 };
+        inventoryData[menuId] = { menu_id: menuId, stock: defaultStock };
       }
       
       const newStock = inventoryData[menuId].stock + change;
@@ -125,11 +143,12 @@ function initAdminDashboard() {
     });
   }
   
-  // 주기적으로 데이터 새로고침 (5초마다)
+  // 주기적으로 데이터 새로고침
+  const refreshInterval = getConfigValue('DASHBOARD.REFRESH_INTERVAL', 5000);
   setInterval(() => {
     loadDashboardStats();
     loadOrdersAdmin();
-  }, 5000);
+  }, refreshInterval);
 }
 
 // 대시보드 통계 로드
@@ -218,7 +237,8 @@ function displayInventory(menus) {
   inventoryList.innerHTML = menus.map(menu => {
     const inventory = InventoryManager.get(menu.menu_id);
     const stock = inventory.stock;
-    const lowStock = stock < 5;
+    const threshold = getConfigValue('INVENTORY.LOW_STOCK_THRESHOLD', 5);
+    const lowStock = stock < threshold;
     
     // 메뉴명에 온도 표시
     const options = menu.options || [];

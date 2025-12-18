@@ -416,10 +416,24 @@ GREEN단계 시작
     - 하위 호환성을 위해 기존 `showError()`, `showSuccess()` 함수 유지
     - 에러 발생 컨텍스트 정보 추가로 디버깅 용이성 향상
 
-- [ ] **하드코딩 값 상수화**
+- [x] **하드코딩 값 상수화**
   - ICE 추가 가격 500원, API_BASE_URL, 재고 임계값 등 상수 파일로 분리
   - 예상 시간: 1시간
   - 파일: `frontend/js/config.js` (신규 생성), `frontend/js/menu.js`, `frontend/js/app.js`
+  - 완료일: 2025-01-27
+  - 변경 사항:
+    - `config.js` 파일 생성: 모든 설정 상수를 중앙 관리
+      - `Config.API.BASE_URL`: API 기본 URL
+      - `Config.PRICING`: 가격 관련 상수 (ICE 추가 가격, 샷 추가 가격, 시럽 추가 가격)
+      - `Config.INVENTORY`: 재고 관련 상수 (기본 재고, 재고 부족 임계값)
+      - `Config.DASHBOARD`: 대시보드 설정 (새로고침 간격)
+      - `Config.DEFAULTS`: 기본값 설정
+    - 모든 하드코딩된 값들을 Config 상수로 변경:
+      - `app.js`, `auth.js`: API_BASE_URL
+      - `menu.js`: ICE 추가 가격, 샷 추가 가격
+      - `admin.js`: 기본 재고, 재고 임계값, 폴링 간격
+    - `getConfigValue()` 헬퍼 함수 추가로 안전한 설정 값 접근
+    - 모든 HTML 파일에 `config.js` 로드 추가
 
 - [ ] **DOM 조작 최적화**
   - 이벤트 위임 적용
@@ -484,9 +498,9 @@ GREEN단계 시작
 ### 📊 진행 상황
 
 - **총 작업 항목**: 15개
-- **완료**: 4개
+- **완료**: 5개
 - **진행 중**: 0개
-- **대기 중**: 11개
+- **대기 중**: 10개
 
 ### 📝 참고 사항
 

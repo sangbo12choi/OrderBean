@@ -1,5 +1,20 @@
 // 메뉴 관련 기능
 
+// 설정 값 헬퍼 함수들
+function getConfigValue(path, defaultValue) {
+  if (typeof Config === 'undefined') return defaultValue;
+  const keys = path.split('.');
+  let value = Config;
+  for (const key of keys) {
+    if (value && typeof value === 'object' && key in value) {
+      value = value[key];
+    } else {
+      return defaultValue;
+    }
+  }
+  return value;
+}
+
 // 장바구니 관리 모듈 (모듈 패턴)
 const CartManager = (function() {
   let cart = []; // private 변수
@@ -144,7 +159,8 @@ function determineInitialTemperature(hasHot, hasIce) {
 
 // 메뉴 가격 계산
 function calculateMenuPrice(basePrice, temperature) {
-  return temperature === 'ICE' ? basePrice + 500 : basePrice;
+  const icePrice = getConfigValue('PRICING.ICE_ADDITIONAL_PRICE', 500);
+  return temperature === 'ICE' ? basePrice + icePrice : basePrice;
 }
 
 // 온도 옵션 HTML 생성
@@ -171,10 +187,11 @@ function createExtraOptionsHTML(menuId, hasShot, hasSyrup) {
   let html = '';
   
   if (hasShot) {
+    const shotPrice = getConfigValue('PRICING.SHOT_ADDITIONAL_PRICE', 500);
     html += `
       <div class="option-checkbox">
-        <input type="checkbox" id="shot-${menuId}" value="샷 추가" data-price="500">
-        <label for="shot-${menuId}">샷 추가 (+500원)</label>
+        <input type="checkbox" id="shot-${menuId}" value="샷 추가" data-price="${shotPrice}">
+        <label for="shot-${menuId}">샷 추가 (+${shotPrice.toLocaleString()}원)</label>
       </div>
     `;
   }
@@ -341,9 +358,10 @@ function collectSelectedOptions(menuId) {
     const tempValue = temperature.value;
     options.push(tempValue);
     displayName = tempValue;
-    // ICE면 추가 가격 500원
+    // ICE면 추가 가격 적용
     if (tempValue === 'ICE') {
-      additionalPrice += 500;
+      const icePrice = getConfigValue('PRICING.ICE_ADDITIONAL_PRICE', 500);
+      additionalPrice += icePrice;
     }
   }
 

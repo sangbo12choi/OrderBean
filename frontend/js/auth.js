@@ -60,10 +60,15 @@ if (typeof api !== 'undefined') {
     throw error;
   }
 
+  // API Base URL 헬퍼 함수
+  function getApiBaseUrl() {
+    return typeof Config !== 'undefined' ? Config.API.BASE_URL : 'http://localhost:3000/api';
+  }
+
   // API 메서드 재정의 (인증 토큰 포함)
   api.get = async function(url) {
     const headers = createAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}${url}`, { headers });
+    const response = await fetch(`${getApiBaseUrl()}${url}`, { headers });
     
     if (!response.ok) {
       await handleApiError(response);
@@ -73,7 +78,7 @@ if (typeof api !== 'undefined') {
 
   api.post = async function(url, data) {
     const headers = createAuthHeaders(true);
-    const response = await fetch(`${API_BASE_URL}${url}`, {
+    const response = await fetch(`${getApiBaseUrl()}${url}`, {
       method: 'POST',
       headers,
       body: JSON.stringify(data),
@@ -87,7 +92,7 @@ if (typeof api !== 'undefined') {
 
   api.put = async function(url, data) {
     const headers = createAuthHeaders(true);
-    const response = await fetch(`${API_BASE_URL}${url}`, {
+    const response = await fetch(`${getApiBaseUrl()}${url}`, {
       method: 'PUT',
       headers,
       body: JSON.stringify(data),
@@ -101,7 +106,7 @@ if (typeof api !== 'undefined') {
 
   api.delete = async function(url) {
     const headers = createAuthHeaders();
-    const response = await fetch(`${API_BASE_URL}${url}`, {
+    const response = await fetch(`${getApiBaseUrl()}${url}`, {
       method: 'DELETE',
       headers
     });
