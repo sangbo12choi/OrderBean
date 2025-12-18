@@ -25,43 +25,54 @@ function logout() {
 
 // API 요청에 토큰 추가 (app.js의 api 객체 확장)
 if (typeof api !== 'undefined') {
-  // 기존 api 객체에 토큰을 포함하는 메서드 추가
-  const originalGet = api.get;
-  const originalPost = api.post;
-  const originalPut = api.put;
-  const originalDelete = api.delete;
-
-  api.get = async function(url) {
-    const token = getToken();
+  // 공통 헤더 생성 함수
+  function createAuthHeaders(includeContentType = false) {
     const headers = {};
+    if (includeContentType) {
+      headers['Content-Type'] = 'application/json';
+    }
+    const token = getToken();
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
+    return headers;
+  }
+
+  // 공통 에러 처리 함수
+  async function handleApiError(response) {
+    if (response.status === 401) {
+      logout();
+      throw new Error('로그인이 필요합니다.');
+    }
     
-    const response = await fetch(`${API_BASE_URL}${url}`, {
-      headers
-    });
+    // 에러 응답 파싱 시도
+    let errorData;
+    try {
+      errorData = await response.json();
+    } catch (e) {
+      errorData = { error: `HTTP ${response.status} 오류가 발생했습니다.` };
+    }
+    
+    // 에러 객체에 원본 데이터도 포함
+    const error = new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
+    error.error = errorData.error;
+    error.message = errorData.message || errorData.error;
+    throw error;
+  }
+
+  // API 메서드 재정의 (인증 토큰 포함)
+  api.get = async function(url) {
+    const headers = createAuthHeaders();
+    const response = await fetch(`${API_BASE_URL}${url}`, { headers });
     
     if (!response.ok) {
-      if (response.status === 401) {
-        // 인증 실패 시 로그아웃 처리
-        logout();
-        throw new Error('로그인이 필요합니다.');
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
+      await handleApiError(response);
     }
     return await response.json();
   };
 
   api.post = async function(url, data) {
-    const token = getToken();
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
+    const headers = createAuthHeaders(true);
     const response = await fetch(`${API_BASE_URL}${url}`, {
       method: 'POST',
       headers,
@@ -69,35 +80,13 @@ if (typeof api !== 'undefined') {
     });
     
     if (!response.ok) {
-      if (response.status === 401) {
-        logout();
-        throw new Error('로그인이 필요합니다.');
-      }
-      // 에러 응답 파싱 시도
-      let errorData;
-      try {
-        errorData = await response.json();
-      } catch (e) {
-        errorData = { error: `HTTP ${response.status} 오류가 발생했습니다.` };
-      }
-      // 에러 객체에 원본 데이터도 포함
-      const error = new Error(errorData.error || errorData.message || `HTTP error! status: ${response.status}`);
-      error.error = errorData.error;
-      error.message = errorData.message || errorData.error;
-      throw error;
+      await handleApiError(response);
     }
     return await response.json();
   };
 
   api.put = async function(url, data) {
-    const token = getToken();
-    const headers = {
-      'Content-Type': 'application/json',
-    };
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
+    const headers = createAuthHeaders(true);
     const response = await fetch(`${API_BASE_URL}${url}`, {
       method: 'PUT',
       headers,
@@ -105,33 +94,20 @@ if (typeof api !== 'undefined') {
     });
     
     if (!response.ok) {
-      if (response.status === 401) {
-        logout();
-        throw new Error('로그인이 필요합니다.');
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
+      await handleApiError(response);
     }
     return await response.json();
   };
 
   api.delete = async function(url) {
-    const token = getToken();
-    const headers = {};
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-    
+    const headers = createAuthHeaders();
     const response = await fetch(`${API_BASE_URL}${url}`, {
       method: 'DELETE',
       headers
     });
     
     if (!response.ok) {
-      if (response.status === 401) {
-        logout();
-        throw new Error('로그인이 필요합니다.');
-      }
-      throw new Error(`HTTP error! status: ${response.status}`);
+      await handleApiError(response);
     }
     return await response.json();
   };
