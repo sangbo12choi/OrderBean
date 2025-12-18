@@ -122,21 +122,32 @@ function getMenuImagePath(menuName, temperature, defaultTemp) {
   }
 }
 
-// 메뉴 옵션 파싱
+// 메뉴 옵션 파싱 (utils.js의 공통 함수 사용)
 function parseMenuOptions(menu) {
+  if (typeof window.parseMenuOptions === 'function') {
+    return window.parseMenuOptions(menu);
+  }
+  // 폴백 (utils.js가 로드되지 않은 경우)
   const options = menu.options || [];
   return {
     hasHot: options.includes('HOT'),
     hasIce: options.includes('ICE'),
-    hasShot: true, // 항상 표시
-    hasSyrup: true // 항상 표시
+    hasShot: true,
+    hasSyrup: true
   };
 }
 
-// 메뉴 표시명 생성
+// 메뉴 표시명 생성 (utils.js의 공통 함수 사용)
 function createMenuDisplayName(menuName, hasHot, hasIce) {
+  if (typeof window.formatMenuNameWithTemperature === 'function') {
+    const options = [];
+    if (hasHot) options.push('HOT');
+    if (hasIce) options.push('ICE');
+    return window.formatMenuNameWithTemperature(menuName, options);
+  }
+  // 폴백
   if (hasHot && hasIce) {
-    return `${menuName}(ICE)`; // 기본값 ICE
+    return `${menuName}(ICE)`;
   } else if (hasHot) {
     return `${menuName}(HOT)`;
   } else if (hasIce) {
@@ -445,13 +456,8 @@ function displayMenus(menus) {
   // 메뉴 데이터 캐시 업데이트
   menusCache = menus;
 
-  // 기존 내용 제거
-  menuList.textContent = '';
-
-  if (menus.length === 0) {
-    const emptyMsg = document.createElement('p');
-    emptyMsg.textContent = '등록된 메뉴가 없습니다.';
-    menuList.appendChild(emptyMsg);
+  // 공통 함수로 빈 목록 처리
+  if (!initializeListContainer(menuList, menus, '등록된 메뉴가 없습니다.')) {
     return;
   }
 
@@ -616,9 +622,14 @@ function updateCart() {
   cartItems.textContent = '';
 
   if (CartManager.isEmpty()) {
-    const emptyMsg = document.createElement('p');
-    emptyMsg.className = 'cart-empty';
-    emptyMsg.textContent = '장바구니가 비어있습니다.';
+    const emptyMsg = typeof window.createEmptyMessageElement === 'function'
+      ? window.createEmptyMessageElement('장바구니가 비어있습니다.', 'cart-empty')
+      : (() => {
+          const msg = document.createElement('p');
+          msg.className = 'cart-empty';
+          msg.textContent = '장바구니가 비어있습니다.';
+          return msg;
+        })();
     cartItems.appendChild(emptyMsg);
     totalAmount.textContent = '0원';
     if (submitOrderBtn) submitOrderBtn.disabled = true;

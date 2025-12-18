@@ -236,18 +236,10 @@ function createInventoryCardElement(menu) {
   const threshold = getConfigValue('INVENTORY.LOW_STOCK_THRESHOLD', 5);
   const lowStock = stock < threshold;
   
-  // 메뉴명에 온도 표시
-  const options = menu.options || [];
-  const hasHot = options.includes('HOT');
-  const hasIce = options.includes('ICE');
-  let displayName = menu.name;
-  if (hasHot && hasIce) {
-    displayName = `${menu.name}(ICE)`;
-  } else if (hasHot) {
-    displayName = `${menu.name}(HOT)`;
-  } else if (hasIce) {
-    displayName = `${menu.name}(ICE)`;
-  }
+  // 메뉴명에 온도 표시 (공통 함수 사용)
+  const displayName = typeof window.formatMenuNameWithTemperature === 'function'
+    ? window.formatMenuNameWithTemperature(menu.name, menu.options || [])
+    : menu.name; // 폴백
   
   const card = document.createElement('div');
   card.className = `inventory-card ${lowStock ? 'low-stock' : ''}`;
@@ -292,13 +284,8 @@ function displayInventory(menus) {
   const inventoryList = document.getElementById('inventory-list');
   if (!inventoryList) return;
   
-  // 기존 내용 제거
-  inventoryList.textContent = '';
-  
-  if (menus.length === 0) {
-    const emptyMsg = document.createElement('p');
-    emptyMsg.textContent = '등록된 메뉴가 없습니다.';
-    inventoryList.appendChild(emptyMsg);
+  // 공통 함수로 빈 목록 처리
+  if (!initializeListContainer(inventoryList, menus, '등록된 메뉴가 없습니다.')) {
     return;
   }
   
@@ -424,13 +411,8 @@ function displayMenusAdmin(menus) {
   const menuList = document.getElementById('menu-list-admin');
   if (!menuList) return;
 
-  // 기존 내용 제거
-  menuList.textContent = '';
-
-  if (menus.length === 0) {
-    const emptyMsg = document.createElement('p');
-    emptyMsg.textContent = '등록된 메뉴가 없습니다.';
-    menuList.appendChild(emptyMsg);
+  // 공통 함수로 빈 목록 처리
+  if (!initializeListContainer(menuList, menus, '등록된 메뉴가 없습니다.')) {
     return;
   }
 
@@ -625,13 +607,8 @@ function displayOrdersAdmin(orders) {
   const ordersList = document.getElementById('orders-list-admin');
   if (!ordersList) return;
 
-  // 기존 내용 제거
-  ordersList.textContent = '';
-
-  if (orders.length === 0) {
-    const emptyMsg = document.createElement('p');
-    emptyMsg.textContent = '주문이 없습니다.';
-    ordersList.appendChild(emptyMsg);
+  // 공통 함수로 빈 목록 처리
+  if (!initializeListContainer(ordersList, orders, '주문이 없습니다.')) {
     return;
   }
 
