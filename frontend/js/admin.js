@@ -306,9 +306,6 @@ async function updateInventory(menuId, change) {
   }
   
   try {
-    // 실제로는 서버 API 호출 필요
-    // await api.put(`/admin/inventory/${menuId}`, { stock: result.stock });
-    
     // UI 업데이트
     const menuData = await api.get('/menus');
     displayInventory(menuData.menus);
