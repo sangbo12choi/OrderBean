@@ -1,6 +1,70 @@
 // 메뉴 관련 기능
 
-let cart = []; // 장바구니 배열
+// 장바구니 관리 모듈 (모듈 패턴)
+const CartManager = (function() {
+  let cart = []; // private 변수
+
+  return {
+    // 장바구니에 아이템 추가
+    add(item) {
+      // 동일한 아이템이 있는지 확인
+      const existingIndex = cart.findIndex(cartItem => {
+        if (cartItem.menu_id !== item.menu_id) return false;
+        
+        const cartOptions = [...cartItem.options].sort();
+        const itemOptions = [...item.options].sort();
+        
+        if (cartOptions.length !== itemOptions.length) return false;
+        return cartOptions.every((opt, idx) => opt === itemOptions[idx]);
+      });
+
+      if (existingIndex >= 0) {
+        cart[existingIndex].quantity += 1;
+        cart[existingIndex].totalPrice = (cart[existingIndex].basePrice + cart[existingIndex].additionalPrice) * cart[existingIndex].quantity;
+        return { added: true, existing: true, quantity: cart[existingIndex].quantity };
+      } else {
+        cart.push(item);
+        return { added: true, existing: false, quantity: 1 };
+      }
+    },
+
+    // 장바구니에서 아이템 제거
+    remove(index) {
+      if (index >= 0 && index < cart.length) {
+        cart.splice(index, 1);
+        return true;
+      }
+      return false;
+    },
+
+    // 장바구니 비우기
+    clear() {
+      cart = [];
+    },
+
+    // 장바구니 전체 가져오기 (복사본 반환)
+    getAll() {
+      return [...cart];
+    },
+
+    // 장바구니 아이템 개수
+    getCount() {
+      return cart.length;
+    },
+
+    // 장바구니가 비어있는지 확인
+    isEmpty() {
+      return cart.length === 0;
+    },
+
+    // 총 금액 계산
+    getTotal() {
+      return cart.reduce((sum, item) => {
+        return sum + ((item.basePrice + item.additionalPrice) * item.quantity);
+      }, 0);
+    }
+  };
+})();
 
 // 이미지 경로 결정 함수
 function getMenuImagePath(menuName, temperature, defaultTemp) {
@@ -277,30 +341,12 @@ function addToCart(menu, menuId) {
     totalPrice: menu.price + additionalPrice
   };
 
-  // 장바구니에 동일한 아이템이 있는지 확인 (메뉴 ID와 옵션이 모두 동일한 경우)
-  const existingIndex = cart.findIndex(cartItem => {
-    // 메뉴 ID가 같고
-    if (cartItem.menu_id !== item.menu_id) return false;
-    
-    // 옵션 배열을 정렬하여 비교
-    const cartOptions = [...cartItem.options].sort();
-    const itemOptions = [...item.options].sort();
-    
-    // 배열 길이가 다르면 다른 아이템
-    if (cartOptions.length !== itemOptions.length) return false;
-    
-    // 모든 옵션이 동일한지 확인
-    return cartOptions.every((opt, idx) => opt === itemOptions[idx]);
-  });
-
-  if (existingIndex >= 0) {
-    // 동일한 아이템이 있으면 수량 증가
-    cart[existingIndex].quantity += 1;
-    cart[existingIndex].totalPrice = (cart[existingIndex].basePrice + cart[existingIndex].additionalPrice) * cart[existingIndex].quantity;
-    showSuccess('장바구니에 추가되었습니다. (수량: ' + cart[existingIndex].quantity + '개)');
+  // 장바구니에 추가
+  const result = CartManager.add(item);
+  
+  if (result.existing) {
+    showSuccess('장바구니에 추가되었습니다. (수량: ' + result.quantity + '개)');
   } else {
-    // 새로운 아이템 추가
-    cart.push(item);
     showSuccess('장바구니에 추가되었습니다.');
   }
 
@@ -315,24 +361,16 @@ function updateCart() {
 
   if (!cartItems || !totalAmount) return;
 
-  if (cart.length === 0) {
+  const cart = CartManager.getAll();
+
+  if (CartManager.isEmpty()) {
     cartItems.innerHTML = '<p class="cart-empty">장바구니가 비어있습니다.</p>';
     totalAmount.textContent = '0원';
-    submitOrderBtn.disabled = true;
+    if (submitOrderBtn) submitOrderBtn.disabled = true;
     return;
   }
 
-  submitOrderBtn.disabled = false;
-
-  // 장바구니가 비어있으면 빈 메시지 표시
-  if (cart.length === 0) {
-    cartItems.innerHTML = '<p class="cart-empty">장바구니가 비어있습니다.</p>';
-    totalAmount.textContent = '0원';
-    submitOrderBtn.disabled = true;
-    return;
-  }
-
-  submitOrderBtn.disabled = false;
+  if (submitOrderBtn) submitOrderBtn.disabled = false;
 
   // 동일한 메뉴와 옵션을 가진 아이템들을 그룹화하여 표시
   cartItems.innerHTML = cart.map((item, index) => {
@@ -350,16 +388,13 @@ function updateCart() {
     `;
   }).join('');
 
-  const total = cart.reduce((sum, item) => {
-    return sum + ((item.basePrice + item.additionalPrice) * item.quantity);
-  }, 0);
-
+  const total = CartManager.getTotal();
   totalAmount.textContent = `${total.toLocaleString()}원`;
 }
 
 // 주문하기
 async function submitOrder() {
-  if (cart.length === 0) {
+  if (CartManager.isEmpty()) {
     showError('장바구니가 비어있습니다.');
     return;
   }
@@ -375,6 +410,7 @@ async function submitOrder() {
   }
 
   try {
+    const cart = CartManager.getAll();
     const orderItems = cart.map(item => {
       const optionsObj = {};
       item.options.forEach(opt => {
@@ -398,7 +434,7 @@ async function submitOrder() {
     });
 
     showSuccess('주문이 완료되었습니다!');
-    cart = [];
+    CartManager.clear();
     updateCart();
   } catch (error) {
     showError(error.message || '주문 처리 중 오류가 발생했습니다.');

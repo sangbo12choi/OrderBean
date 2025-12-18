@@ -364,10 +364,15 @@ GREEN단계 시작
   - 파일: `frontend/js/auth.js`
   - 완료일: 2025-01-27
 
-- [ ] **전역 변수 모듈화**
+- [x] **전역 변수 모듈화**
   - `cart`, `inventoryData`, `menusCache` 등 전역 변수를 모듈 패턴 또는 클래스 기반 상태 관리로 변경
   - 예상 시간: 2시간
   - 파일: `frontend/js/menu.js`, `frontend/js/admin.js`
+  - 완료일: 2025-01-27
+  - 변경 사항:
+    - `CartManager` 모듈 패턴으로 `cart` 전역 변수 캡슐화
+    - `InventoryManager` 모듈 패턴으로 `inventoryData` 전역 변수 캡슐화
+    - `MenuCacheManager` 모듈 패턴으로 `menusCache` 전역 변수 캡슐화
 
 - [ ] **함수 분리** (`displayMenus`, `addToCart`)
   - 단일 책임 원칙(SRP) 적용
@@ -452,9 +457,9 @@ GREEN단계 시작
 ### 📊 진행 상황
 
 - **총 작업 항목**: 15개
-- **완료**: 1개
+- **완료**: 2개
 - **진행 중**: 0개
-- **대기 중**: 14개
+- **대기 중**: 13개
 
 ### 📝 참고 사항
 

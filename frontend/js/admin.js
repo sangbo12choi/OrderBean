@@ -1,8 +1,98 @@
 // 관리자 관련 기능
 
-// 전역 변수
-let inventoryData = {}; // 재고 데이터 캐시
-let menusCache = {}; // 메뉴 데이터 캐시
+// 재고 데이터 관리 모듈 (모듈 패턴)
+const InventoryManager = (function() {
+  let inventoryData = {}; // private 변수
+
+  return {
+    // 재고 데이터 초기화
+    init(menus) {
+      menus.forEach(menu => {
+        if (!inventoryData[menu.menu_id]) {
+          inventoryData[menu.menu_id] = {
+            menu_id: menu.menu_id,
+            menu_name: menu.name,
+            stock: 10 // 기본 재고
+          };
+        }
+      });
+    },
+
+    // 재고 데이터 가져오기
+    get(menuId) {
+      return inventoryData[menuId] || { stock: 10 };
+    },
+
+    // 재고 데이터 설정
+    set(menuId, data) {
+      inventoryData[menuId] = { ...inventoryData[menuId], ...data };
+    },
+
+    // 재고 수량 업데이트
+    updateStock(menuId, change) {
+      if (!inventoryData[menuId]) {
+        inventoryData[menuId] = { menu_id: menuId, stock: 10 };
+      }
+      
+      const newStock = inventoryData[menuId].stock + change;
+      if (newStock < 0) {
+        return { success: false, error: '재고는 0보다 작을 수 없습니다.' };
+      }
+      
+      inventoryData[menuId].stock = newStock;
+      return { success: true, stock: newStock };
+    },
+
+    // 모든 재고 데이터 가져오기
+    getAll() {
+      return { ...inventoryData };
+    },
+
+    // 재고 데이터 초기화
+    clear() {
+      inventoryData = {};
+    }
+  };
+})();
+
+// 메뉴 캐시 관리 모듈 (모듈 패턴)
+const MenuCacheManager = (function() {
+  let menusCache = {}; // private 변수
+
+  return {
+    // 메뉴 캐시에 추가
+    set(menuId, menu) {
+      menusCache[menuId] = menu;
+    },
+
+    // 메뉴 캐시에서 가져오기
+    get(menuId) {
+      return menusCache[menuId] || null;
+    },
+
+    // 여러 메뉴 일괄 추가
+    setAll(menus) {
+      menus.forEach(menu => {
+        menusCache[menu.menu_id] = menu;
+      });
+    },
+
+    // 모든 메뉴 캐시 가져오기
+    getAll() {
+      return { ...menusCache };
+    },
+
+    // 캐시가 비어있는지 확인
+    isEmpty() {
+      return Object.keys(menusCache).length === 0;
+    },
+
+    // 캐시 초기화
+    clear() {
+      menusCache = {};
+    }
+  };
+})();
 
 // 페이지 로드 시 초기화
 if (document.getElementById('admin-section')) {
@@ -104,20 +194,10 @@ async function loadInventory() {
     const menus = menuData.menus || [];
     
     // 메뉴 캐시 저장
-    menus.forEach(menu => {
-      menusCache[menu.menu_id] = menu;
-    });
+    MenuCacheManager.setAll(menus);
     
     // 재고 데이터 초기화 (실제로는 서버에서 가져와야 함)
-    menus.forEach(menu => {
-      if (!inventoryData[menu.menu_id]) {
-        inventoryData[menu.menu_id] = {
-          menu_id: menu.menu_id,
-          menu_name: menu.name,
-          stock: 10 // 기본 재고
-        };
-      }
-    });
+    InventoryManager.init(menus);
     
     displayInventory(menus);
   } catch (error) {
@@ -137,7 +217,7 @@ function displayInventory(menus) {
   }
   
   inventoryList.innerHTML = menus.map(menu => {
-    const inventory = inventoryData[menu.menu_id] || { stock: 10 };
+    const inventory = InventoryManager.get(menu.menu_id);
     const stock = inventory.stock;
     const lowStock = stock < 5;
     
@@ -169,22 +249,16 @@ function displayInventory(menus) {
 
 // 재고 수량 업데이트
 async function updateInventory(menuId, change) {
-  if (!inventoryData[menuId]) {
-    inventoryData[menuId] = { menu_id: menuId, stock: 10 };
-  }
+  const result = InventoryManager.updateStock(menuId, change);
   
-  const newStock = inventoryData[menuId].stock + change;
-  
-  if (newStock < 0) {
-    showError('재고는 0보다 작을 수 없습니다.');
+  if (!result.success) {
+    showError(result.error);
     return;
   }
   
   try {
     // 실제로는 서버 API 호출 필요
-    // await api.put(`/admin/inventory/${menuId}`, { stock: newStock });
-    
-    inventoryData[menuId].stock = newStock;
+    // await api.put(`/admin/inventory/${menuId}`, { stock: result.stock });
     
     // UI 업데이트
     const menuData = await api.get('/menus');
@@ -317,11 +391,9 @@ async function deleteMenu(menuId) {
 async function loadOrdersAdmin() {
   try {
     // 메뉴 정보가 없으면 먼저 로드
-    if (Object.keys(menusCache).length === 0) {
+    if (MenuCacheManager.isEmpty()) {
       const menuData = await api.get('/menus');
-      menuData.menus.forEach(menu => {
-        menusCache[menu.menu_id] = menu;
-      });
+      MenuCacheManager.setAll(menuData.menus);
     }
     
     const data = await api.get('/orders');
@@ -361,7 +433,7 @@ function displayOrdersAdmin(orders) {
     
     // 주문 항목 표시
     const itemsHtml = order.items.map(item => {
-      const menu = menusCache[item.menu_id];
+      const menu = MenuCacheManager.get(item.menu_id);
       const menuName = menu ? menu.name : `메뉴 ID: ${item.menu_id}`;
       const options = item.options || {};
       
@@ -390,7 +462,7 @@ function displayOrdersAdmin(orders) {
 
     // 총 가격 계산
     const totalPrice = order.total_price || order.items.reduce((sum, item) => {
-      const menu = menusCache[item.menu_id];
+      const menu = MenuCacheManager.get(item.menu_id);
       const itemPrice = menu ? menu.price : (item.price || 4000);
       const quantity = item.quantity || 1;
       return sum + itemPrice * quantity;
