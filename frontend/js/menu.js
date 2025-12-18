@@ -487,8 +487,7 @@ async function submitOrder() {
     CartManager.clear();
     updateCart();
   } catch (error) {
-    showError(error.message || '주문 처리 중 오류가 발생했습니다.');
-    console.error(error);
+    ErrorHandler.handle(error, '주문 처리');
   }
 }
 

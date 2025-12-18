@@ -147,7 +147,7 @@ async function loadDashboardStats() {
     
     updateDashboardStats(stats);
   } catch (error) {
-    console.error('Error loading dashboard stats:', error);
+    ErrorHandler.log(error, '대시보드 통계 로드');
   }
 }
 
@@ -201,8 +201,7 @@ async function loadInventory() {
     
     displayInventory(menus);
   } catch (error) {
-    console.error('Error loading inventory:', error);
-    showError('재고 정보를 불러오는 중 오류가 발생했습니다.');
+    ErrorHandler.handle(error, '재고 정보 로드');
   }
 }
 
@@ -266,8 +265,7 @@ async function updateInventory(menuId, change) {
     
     showSuccess(`재고가 ${change > 0 ? '증가' : '감소'}되었습니다.`);
   } catch (error) {
-    console.error('Error updating inventory:', error);
-    showError('재고 업데이트 중 오류가 발생했습니다.');
+    ErrorHandler.handle(error, '재고 업데이트');
   }
 }
 
@@ -399,8 +397,7 @@ async function loadOrdersAdmin() {
     const data = await api.get('/orders');
     displayOrdersAdmin(data.orders);
   } catch (error) {
-    console.error('Error loading orders:', error);
-    showError('주문 목록을 불러오는 중 오류가 발생했습니다.');
+    ErrorHandler.handle(error, '주문 목록 로드');
   }
 }
 
@@ -536,8 +533,7 @@ async function updateOrderStatus(orderId, newStatus) {
     loadDashboardStats();
     loadOrdersAdmin();
   } catch (error) {
-    console.error('Error updating order status:', error);
-    showError('주문 상태 변경 중 오류가 발생했습니다.');
+    ErrorHandler.handle(error, '주문 상태 변경');
   }
 }
 
