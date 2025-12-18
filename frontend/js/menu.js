@@ -107,6 +107,182 @@ function getMenuImagePath(menuName, temperature, defaultTemp) {
   }
 }
 
+// 메뉴 옵션 파싱
+function parseMenuOptions(menu) {
+  const options = menu.options || [];
+  return {
+    hasHot: options.includes('HOT'),
+    hasIce: options.includes('ICE'),
+    hasShot: true, // 항상 표시
+    hasSyrup: true // 항상 표시
+  };
+}
+
+// 메뉴 표시명 생성
+function createMenuDisplayName(menuName, hasHot, hasIce) {
+  if (hasHot && hasIce) {
+    return `${menuName}(ICE)`; // 기본값 ICE
+  } else if (hasHot) {
+    return `${menuName}(HOT)`;
+  } else if (hasIce) {
+    return `${menuName}(ICE)`;
+  }
+  return menuName;
+}
+
+// 초기 온도 결정
+function determineInitialTemperature(hasHot, hasIce) {
+  if (hasHot && !hasIce) {
+    return 'HOT';
+  } else if (hasIce && !hasHot) {
+    return 'ICE';
+  } else if (hasHot && hasIce) {
+    return 'ICE'; // 기본값
+  }
+  return 'ICE'; // 기본값
+}
+
+// 메뉴 가격 계산
+function calculateMenuPrice(basePrice, temperature) {
+  return temperature === 'ICE' ? basePrice + 500 : basePrice;
+}
+
+// 온도 옵션 HTML 생성
+function createTemperatureOptionsHTML(menuId, hasHot, hasIce) {
+  if (!hasHot && !hasIce) return '';
+  
+  const hotChecked = hasHot && !hasIce ? 'checked' : '';
+  const iceChecked = hasIce && !hasHot ? 'checked' : (hasHot && hasIce ? 'checked' : '');
+  
+  return `
+    <div class="option-checkbox">
+      <input type="radio" name="temp-${menuId}" id="hot-${menuId}" value="HOT" ${hotChecked}>
+      <label for="hot-${menuId}">HOT</label>
+    </div>
+    <div class="option-checkbox">
+      <input type="radio" name="temp-${menuId}" id="ice-${menuId}" value="ICE" ${iceChecked}>
+      <label for="ice-${menuId}">ICE</label>
+    </div>
+  `;
+}
+
+// 추가 옵션 HTML 생성
+function createExtraOptionsHTML(menuId, hasShot, hasSyrup) {
+  let html = '';
+  
+  if (hasShot) {
+    html += `
+      <div class="option-checkbox">
+        <input type="checkbox" id="shot-${menuId}" value="샷 추가" data-price="500">
+        <label for="shot-${menuId}">샷 추가 (+500원)</label>
+      </div>
+    `;
+  }
+  
+  if (hasSyrup) {
+    html += `
+      <div class="option-checkbox">
+        <input type="checkbox" id="syrup-${menuId}" value="시럽 추가" data-price="0">
+        <label for="syrup-${menuId}">시럽 추가 (+0원)</label>
+      </div>
+    `;
+  }
+  
+  return html;
+}
+
+// 메뉴 카드 HTML 생성
+function createMenuCardHTML(menu) {
+  const options = parseMenuOptions(menu);
+  const displayName = createMenuDisplayName(menu.name, options.hasHot, options.hasIce);
+  const initialTemp = determineInitialTemperature(options.hasHot, options.hasIce);
+  const imagePath = getMenuImagePath(menu.name, initialTemp, initialTemp);
+  const initialPrice = calculateMenuPrice(menu.price, initialTemp);
+  const temperatureOptions = createTemperatureOptionsHTML(menu.menu_id, options.hasHot, options.hasIce);
+  const extraOptions = createExtraOptionsHTML(menu.menu_id, options.hasShot, options.hasSyrup);
+  
+  return `
+    <div class="menu-item" data-menu-id="${menu.menu_id}">
+      <div class="menu-image">
+        <img src="${imagePath}" alt="${displayName}" onerror="this.style.display='none'; this.parentElement.classList.add('no-image');">
+      </div>
+      <h3>${displayName}</h3>
+      <div class="menu-price">${initialPrice.toLocaleString()}원</div>
+      <div class="menu-options">
+        ${temperatureOptions}
+        ${extraOptions}
+      </div>
+      <button class="add-to-cart-btn" data-menu-id="${menu.menu_id}">담기</button>
+    </div>
+  `;
+}
+
+// 메뉴 온도 변경 핸들러 설정
+function setupTemperatureChangeHandler(menu, menuItem) {
+  const tempRadios = menuItem.querySelectorAll(`input[name="temp-${menu.menu_id}"]`);
+  const menuImage = menuItem.querySelector('.menu-image img');
+  const menuImageContainer = menuItem.querySelector('.menu-image');
+  const menuTitle = menuItem.querySelector('h3');
+  const menuPrice = menuItem.querySelector('.menu-price');
+  
+  if (!tempRadios || tempRadios.length === 0 || !menuImage || !menuImageContainer) {
+    return;
+  }
+  
+  // 초기 설정
+  const checkedRadio = Array.from(tempRadios).find(radio => radio.checked);
+  if (checkedRadio) {
+    const initialTemp = checkedRadio.value;
+    updateMenuDisplay(menu, menuImage, menuImageContainer, menuTitle, menuPrice, initialTemp);
+  }
+  
+  // 온도 변경 이벤트 리스너
+  tempRadios.forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      if (e.target.checked) {
+        updateMenuDisplay(menu, menuImage, menuImageContainer, menuTitle, menuPrice, e.target.value);
+      }
+    });
+  });
+}
+
+// 메뉴 표시 업데이트 (이미지, 이름, 가격)
+function updateMenuDisplay(menu, menuImage, menuImageContainer, menuTitle, menuPrice, temperature) {
+  // 이미지 업데이트
+  menuImage.style.display = '';
+  menuImageContainer.classList.remove('no-image');
+  const newImagePath = getMenuImagePath(menu.name, temperature);
+  menuImage.src = '';
+  setTimeout(() => {
+    menuImage.src = newImagePath;
+  }, 0);
+  
+  // 메뉴명 업데이트
+  if (menuTitle) {
+    menuTitle.textContent = `${menu.name}(${temperature})`;
+  }
+  
+  // 가격 업데이트
+  if (menuPrice) {
+    const newPrice = calculateMenuPrice(menu.price, temperature);
+    menuPrice.textContent = `${newPrice.toLocaleString()}원`;
+  }
+}
+
+// 담기 버튼 이벤트 리스너 연결
+function attachAddToCartListeners(menuList, menus) {
+  menuList.querySelectorAll('.add-to-cart-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const menuId = parseInt(btn.dataset.menuId);
+      const menu = menus.find(m => m.menu_id === menuId);
+      if (menu) {
+        addToCart(menu, menuId);
+      }
+    });
+  });
+}
+
 // 메뉴 목록 로드
 async function loadMenus() {
   try {
@@ -127,193 +303,44 @@ function displayMenus(menus) {
     return;
   }
 
-  menuList.innerHTML = menus.map(menu => {
-    // 옵션 파싱
-    const options = menu.options || [];
-    const hasHot = options.includes('HOT');
-    const hasIce = options.includes('ICE');
-    
-    // 모든 메뉴에 기본적으로 샷 추가와 시럽 추가 옵션 제공 (이미지 목업에 맞춤)
-    const hasShot = true; // 항상 표시
-    const hasSyrup = true; // 항상 표시
+  // 메뉴 카드 HTML 생성
+  menuList.innerHTML = menus.map(menu => createMenuCardHTML(menu)).join('');
 
-    // 메뉴명에 온도 표시 (이미지 목업 스타일)
-    let menuDisplayName = menu.name;
-    if (hasHot && hasIce) {
-      // HOT과 ICE 둘 다 있으면 기본값으로 HOT 표시 (이미지 목업에서는 ICE가 먼저 나옴)
-      menuDisplayName = `${menu.name}(ICE)`;
-    } else if (hasHot) {
-      menuDisplayName = `${menu.name}(HOT)`;
-    } else if (hasIce) {
-      menuDisplayName = `${menu.name}(ICE)`;
-    }
+  // 담기 버튼 이벤트 리스너 연결
+  attachAddToCartListeners(menuList, menus);
 
-    // 온도 옵션 생성 (라디오 버튼)
-    let temperatureOptions = '';
-    if (hasHot || hasIce) {
-      temperatureOptions = `
-        <div class="option-checkbox">
-          <input type="radio" name="temp-${menu.menu_id}" id="hot-${menu.menu_id}" value="HOT" ${hasHot && !hasIce ? 'checked' : hasHot && hasIce ? '' : ''}>
-          <label for="hot-${menu.menu_id}">HOT</label>
-        </div>
-        <div class="option-checkbox">
-          <input type="radio" name="temp-${menu.menu_id}" id="ice-${menu.menu_id}" value="ICE" ${hasIce && !hasHot ? 'checked' : hasHot && hasIce ? 'checked' : ''}>
-          <label for="ice-${menu.menu_id}">ICE</label>
-        </div>
-      `;
-    }
-
-    // 추가 옵션 생성 (체크박스)
-    let extraOptions = '';
-    if (hasShot) {
-      extraOptions += `
-        <div class="option-checkbox">
-          <input type="checkbox" id="shot-${menu.menu_id}" value="샷 추가" data-price="500">
-          <label for="shot-${menu.menu_id}">샷 추가 (+500원)</label>
-        </div>
-      `;
-    }
-    if (hasSyrup) {
-      extraOptions += `
-        <div class="option-checkbox">
-          <input type="checkbox" id="syrup-${menu.menu_id}" value="시럽 추가" data-price="0">
-          <label for="syrup-${menu.menu_id}">시럽 추가 (+0원)</label>
-        </div>
-      `;
-    }
-
-    // 초기 이미지 경로 결정 (라디오 버튼의 checked 속성과 정확히 동일한 로직 사용)
-    // 라디오 버튼 로직: 
-    // - HOT: hasHot && !hasIce ? 'checked' : hasHot && hasIce ? '' : ''
-    // - ICE: hasIce && !hasHot ? 'checked' : hasHot && hasIce ? 'checked' : ''
-    let initialTemp;
-    if (hasHot && !hasIce) {
-      initialTemp = 'HOT';  // HOT만 있으면 HOT이 checked
-    } else if (hasIce && !hasHot) {
-      initialTemp = 'ICE';  // ICE만 있으면 ICE가 checked
-    } else if (hasHot && hasIce) {
-      initialTemp = 'ICE';  // 둘 다 있으면 ICE가 checked (기본값)
-    } else {
-      initialTemp = 'ICE';  // 기본값
-    }
-    const imagePath = getMenuImagePath(menu.name, initialTemp, initialTemp);
-    
-    // 초기 가격 계산 (ICE면 +500원)
-    const initialPrice = initialTemp === 'ICE' ? menu.price + 500 : menu.price;
-    
-    return `
-      <div class="menu-item" data-menu-id="${menu.menu_id}">
-        <div class="menu-image">
-          <img src="${imagePath}" alt="${menuDisplayName}" onerror="this.style.display='none'; this.parentElement.classList.add('no-image');">
-        </div>
-        <h3>${menuDisplayName}</h3>
-        <div class="menu-price">${initialPrice.toLocaleString()}원</div>
-        <div class="menu-options">
-          ${temperatureOptions}
-          ${extraOptions}
-        </div>
-        <button class="add-to-cart-btn" data-menu-id="${menu.menu_id}">담기</button>
-      </div>
-    `;
-  }).join('');
-
-  // 담기 버튼 이벤트
-  menuList.querySelectorAll('.add-to-cart-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const menuId = parseInt(btn.dataset.menuId);
-      const menu = menus.find(m => m.menu_id === menuId);
-      if (menu) {
-        addToCart(menu, menuId);
-      }
-    });
-  });
-
-  // 온도 선택에 따라 이미지 업데이트 (모든 메뉴에 적용)
+  // 온도 변경 핸들러 설정
   menus.forEach(menu => {
-    const tempRadios = menuList.querySelectorAll(`input[name="temp-${menu.menu_id}"]`);
     const menuItem = menuList.querySelector(`[data-menu-id="${menu.menu_id}"]`);
-    const menuImage = menuItem ? menuItem.querySelector('.menu-image img') : null;
-    const menuImageContainer = menuItem ? menuItem.querySelector('.menu-image') : null;
-    
-    if (tempRadios && tempRadios.length > 0 && menuImage && menuImageContainer) {
-      // 메뉴명 및 가격 요소 찾기
-      const menuTitle = menuItem ? menuItem.querySelector('h3') : null;
-      const menuPrice = menuItem ? menuItem.querySelector('.menu-price') : null;
-      
-      // 초기 선택된 라디오 버튼에 맞춰 이미지, 메뉴명, 가격 설정
-      const checkedRadio = Array.from(tempRadios).find(radio => radio.checked);
-      if (checkedRadio) {
-        const initialTemp = checkedRadio.value;
-        const initialImagePath = getMenuImagePath(menu.name, initialTemp);
-        menuImage.src = initialImagePath;
-        // 이미지 표시 상태 확실히 설정
-        menuImage.style.display = '';
-        menuImageContainer.classList.remove('no-image');
-        
-        // 초기 메뉴명 설정
-        if (menuTitle) {
-          menuTitle.textContent = `${menu.name}(${initialTemp})`;
-        }
-        
-        // 초기 가격 설정 (ICE면 +500원)
-        if (menuPrice) {
-          const initialPrice = initialTemp === 'ICE' ? menu.price + 500 : menu.price;
-          menuPrice.textContent = `${initialPrice.toLocaleString()}원`;
-        }
-      }
-      
-      // 온도 변경 시 이미지, 메뉴명, 가격 업데이트
-      tempRadios.forEach(radio => {
-        radio.addEventListener('change', (e) => {
-          if (e.target.checked) {
-            const selectedTemp = e.target.value;
-            // 이미지 표시 상태 복원
-            menuImage.style.display = '';
-            menuImageContainer.classList.remove('no-image');
-            
-            // 이미지 경로 업데이트 (강제로 다시 로드)
-            const newImagePath = getMenuImagePath(menu.name, selectedTemp);
-            // 이미지를 강제로 다시 로드하기 위해 src를 먼저 비우고 다시 설정
-            menuImage.src = '';
-            // 다음 프레임에서 새 이미지 로드
-            setTimeout(() => {
-              menuImage.src = newImagePath;
-            }, 0);
-            
-            // 메뉴명 업데이트
-            if (menuTitle) {
-              menuTitle.textContent = `${menu.name}(${selectedTemp})`;
-            }
-            
-            // 가격 업데이트 (ICE면 +500원)
-            if (menuPrice) {
-              const newPrice = selectedTemp === 'ICE' ? menu.price + 500 : menu.price;
-              menuPrice.textContent = `${newPrice.toLocaleString()}원`;
-            }
-          }
-        });
-      });
+    if (menuItem) {
+      setupTemperatureChangeHandler(menu, menuItem);
     }
   });
 }
+  const menuList = document.getElementById('menu-list');
+  if (!menuList) return;
 
-// 장바구니에 추가
-function addToCart(menu, menuId) {
-  // 선택된 옵션 가져오기
+  if (menus.length === 0) {
+    menuList.innerHTML = '<p>등록된 메뉴가 없습니다.</p>';
+    return;
+  }
+
+
+// 선택된 옵션 수집
+function collectSelectedOptions(menuId) {
   const temperature = document.querySelector(`input[name="temp-${menuId}"]:checked`);
   const shot = document.getElementById(`shot-${menuId}`);
   const syrup = document.getElementById(`syrup-${menuId}`);
 
   const options = [];
   let additionalPrice = 0;
-  let displayName = menu.name;
+  let displayName = '';
 
   // 온도 옵션
   if (temperature) {
     const tempValue = temperature.value;
     options.push(tempValue);
-    displayName = `${menu.name}(${tempValue})`;
+    displayName = tempValue;
     // ICE면 추가 가격 500원
     if (tempValue === 'ICE') {
       additionalPrice += 500;
@@ -330,20 +357,43 @@ function addToCart(menu, menuId) {
     additionalPrice += parseInt(syrup.dataset.price || 0);
   }
 
-  const item = {
+  return {
+    options: options.sort(), // 옵션을 정렬하여 비교 정확도 향상
+    additionalPrice,
+    displayName
+  };
+}
+
+// 장바구니 아이템 생성
+function createCartItem(menu, selectedOptions) {
+  const displayName = selectedOptions.displayName 
+    ? `${menu.name}(${selectedOptions.displayName})` 
+    : menu.name;
+
+  return {
     menu_id: menu.menu_id,
     name: menu.name,
     displayName: displayName,
     basePrice: menu.price,
-    options: options.sort(), // 옵션을 정렬하여 비교 정확도 향상
-    additionalPrice: additionalPrice,
+    options: selectedOptions.options,
+    additionalPrice: selectedOptions.additionalPrice,
     quantity: 1,
-    totalPrice: menu.price + additionalPrice
+    totalPrice: menu.price + selectedOptions.additionalPrice
   };
+}
 
+// 장바구니에 추가
+function addToCart(menu, menuId) {
+  // 선택된 옵션 수집
+  const selectedOptions = collectSelectedOptions(menuId);
+  
+  // 장바구니 아이템 생성
+  const item = createCartItem(menu, selectedOptions);
+  
   // 장바구니에 추가
   const result = CartManager.add(item);
   
+  // 사용자 피드백
   if (result.existing) {
     showSuccess('장바구니에 추가되었습니다. (수량: ' + result.quantity + '개)');
   } else {

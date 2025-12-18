@@ -374,12 +374,29 @@ GREEN단계 시작
     - `InventoryManager` 모듈 패턴으로 `inventoryData` 전역 변수 캡슐화
     - `MenuCacheManager` 모듈 패턴으로 `menusCache` 전역 변수 캡슐화
 
-- [ ] **함수 분리** (`displayMenus`, `addToCart`)
+- [x] **함수 분리** (`displayMenus`, `addToCart`)
   - 단일 책임 원칙(SRP) 적용
   - `displayMenus()` 함수 분리 (235줄 → 작은 함수들로)
   - `addToCart()` 함수 복잡도 감소
   - 예상 시간: 3시간
   - 파일: `frontend/js/menu.js`
+  - 완료일: 2025-01-27
+  - 변경 사항:
+    - `displayMenus()` 함수를 9개의 작은 함수로 분리:
+      - `parseMenuOptions()`: 메뉴 옵션 파싱
+      - `createMenuDisplayName()`: 메뉴 표시명 생성
+      - `determineInitialTemperature()`: 초기 온도 결정
+      - `calculateMenuPrice()`: 메뉴 가격 계산
+      - `createTemperatureOptionsHTML()`: 온도 옵션 HTML 생성
+      - `createExtraOptionsHTML()`: 추가 옵션 HTML 생성
+      - `createMenuCardHTML()`: 메뉴 카드 HTML 생성
+      - `setupTemperatureChangeHandler()`: 온도 변경 핸들러 설정
+      - `updateMenuDisplay()`: 메뉴 표시 업데이트
+      - `attachAddToCartListeners()`: 담기 버튼 이벤트 리스너 연결
+    - `addToCart()` 함수를 3개의 작은 함수로 분리:
+      - `collectSelectedOptions()`: 선택된 옵션 수집
+      - `createCartItem()`: 장바구니 아이템 생성
+      - `addToCart()`: 메인 로직 (간소화)
 
 ### 🟡 중요 (단기 개선)
 
@@ -457,9 +474,9 @@ GREEN단계 시작
 ### 📊 진행 상황
 
 - **총 작업 항목**: 15개
-- **완료**: 2개
+- **완료**: 3개
 - **진행 중**: 0개
-- **대기 중**: 13개
+- **대기 중**: 12개
 
 ### 📝 참고 사항
 
