@@ -137,14 +137,8 @@ function initAdminDashboard() {
   // 탭 초기화
   initTabs();
   
-  // 메뉴 등록 폼 이벤트
-  const createMenuForm = document.getElementById('create-menu-form');
-  if (createMenuForm) {
-    createMenuForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      createMenu();
-    });
-  }
+  // 메뉴 등록 폼 이벤트 (중복 등록 방지)
+  setupMenuFormHandler();
   
   // 주기적으로 데이터 새로고침
   const refreshInterval = getConfigValue('DASHBOARD.REFRESH_INTERVAL', 5000);
@@ -182,15 +176,22 @@ function updateDashboardStats(stats) {
   if (adminDOMCache.statCompleted) adminDOMCache.statCompleted.textContent = stats.completed;
 }
 
-// 통계 카드 클릭 이벤트 초기화
+// 통계 카드 클릭 이벤트 위임 설정 (한 번만 등록)
+let statCardsHandlerAttached = false;
 function initStatCards() {
-  const statCards = document.querySelectorAll('.stat-card');
-  statCards.forEach(card => {
-    card.addEventListener('click', () => {
-      const status = card.dataset.status;
-      filterOrdersByStatus(status);
+  if (statCardsHandlerAttached) return;
+  statCardsHandlerAttached = true;
+  
+  const dashboardStats = document.getElementById('dashboard-stats');
+  if (dashboardStats) {
+    dashboardStats.addEventListener('click', (e) => {
+      const card = e.target.closest('.stat-card');
+      if (card && card.dataset.status) {
+        const status = card.dataset.status;
+        filterOrdersByStatus(status);
+      }
     });
-  });
+  }
 }
 
 // 주문 상태별 필터링
@@ -331,32 +332,39 @@ async function updateInventory(menuId, change) {
   }
 }
 
-// 탭 전환
+// 탭 전환 이벤트 위임 설정 (한 번만 등록)
+let tabsHandlerAttached = false;
 function initTabs() {
-  const tabButtons = document.querySelectorAll('.tab-btn');
-  const tabContents = document.querySelectorAll('.tab-content');
+  if (tabsHandlerAttached) return;
+  tabsHandlerAttached = true;
+  
+  const adminTabs = document.querySelector('.admin-tabs');
+  if (adminTabs) {
+    adminTabs.addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab-btn');
+      if (btn && btn.dataset.tab) {
+        const targetTab = btn.dataset.tab;
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
 
-  tabButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      const targetTab = btn.dataset.tab;
+        // 모든 탭 버튼 비활성화
+        tabButtons.forEach(b => b.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
 
-      // 모든 탭 버튼 비활성화
-      tabButtons.forEach(b => b.classList.remove('active'));
-      tabContents.forEach(c => c.classList.remove('active'));
+        // 선택된 탭 활성화
+        btn.classList.add('active');
+        const tabContent = document.getElementById(`${targetTab}-tab`);
+        if (tabContent) {
+          tabContent.classList.add('active');
+        }
 
-      // 선택된 탭 활성화
-      btn.classList.add('active');
-      const tabContent = document.getElementById(`${targetTab}-tab`);
-      if (tabContent) {
-        tabContent.classList.add('active');
-      }
-
-      // 탭별 데이터 로드
-      if (targetTab === 'menus') {
-        loadMenusAdmin();
+        // 탭별 데이터 로드
+        if (targetTab === 'menus') {
+          loadMenusAdmin();
+        }
       }
     });
-  });
+  }
 }
 
 // 메뉴 관리 - 메뉴 목록 로드
@@ -665,6 +673,21 @@ async function updateOrderStatus(orderId, newStatus) {
     loadOrdersAdmin();
   } catch (error) {
     ErrorHandler.handle(error, '주문 상태 변경');
+  }
+}
+
+// 메뉴 등록 폼 이벤트 핸들러 설정 (중복 등록 방지)
+let menuFormHandlerAttached = false;
+function setupMenuFormHandler() {
+  if (menuFormHandlerAttached) return;
+  menuFormHandlerAttached = true;
+  
+  const createMenuForm = document.getElementById('create-menu-form');
+  if (createMenuForm) {
+    createMenuForm.addEventListener('submit', (e) => {
+      e.preventDefault();
+      createMenu();
+    });
   }
 }
 

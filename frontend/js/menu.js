@@ -686,14 +686,21 @@ async function submitOrder() {
   }
 }
 
+// 주문하기 버튼 이벤트 핸들러 설정 (중복 등록 방지)
+let submitOrderHandlerAttached = false;
+function setupSubmitOrderHandler() {
+  if (submitOrderHandlerAttached) return;
+  submitOrderHandlerAttached = true;
+  
+  const submitOrderBtn = document.getElementById('submit-order');
+  if (submitOrderBtn) {
+    submitOrderBtn.addEventListener('click', submitOrder);
+  }
+}
+
 // 페이지 로드 시 메뉴 로드
 if (document.getElementById('menu-list')) {
   loadMenus();
-}
-
-// 주문하기 버튼 이벤트
-const submitOrderBtn = document.getElementById('submit-order');
-if (submitOrderBtn) {
-  submitOrderBtn.addEventListener('click', submitOrder);
+  setupSubmitOrderHandler();
 }
 
