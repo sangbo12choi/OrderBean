@@ -2,6 +2,47 @@
 
 let cart = []; // 장바구니 배열
 
+// 이미지 경로 결정 함수
+function getMenuImagePath(menuName, temperature, defaultTemp) {
+  const menuNameLower = menuName.toLowerCase();
+  const temp = temperature || defaultTemp || 'ICE';
+  
+  // 아메리카노
+  if (menuNameLower.includes('아메리카노') || menuNameLower.includes('americano')) {
+    return temp === 'ICE' ? '/images/americano-ice.jpg' : '/images/americano-hot.jpg';
+  }
+  // 카페라떼
+  else if (menuNameLower.includes('카페라떼') || menuNameLower.includes('cafe latte') || 
+           (menuNameLower.includes('라떼') && !menuNameLower.includes('바닐라') && !menuNameLower.includes('vanilla'))) {
+    return temp === 'ICE' ? '/images/latte-ice.jpg' : '/images/latte-hot.jpg';
+  }
+  // 카푸치노
+  else if (menuNameLower.includes('카푸치노') || menuNameLower.includes('cappuccino')) {
+    return temp === 'ICE' ? '/images/cappuccino-ice.jpg' : '/images/cappuccino-hot.jpg';
+  }
+  // 카라멜 마키아토
+  else if (menuNameLower.includes('카라멜') || menuNameLower.includes('caramel') || 
+           menuNameLower.includes('마키아토') || menuNameLower.includes('macchiato')) {
+    return temp === 'ICE' ? '/images/caramel-macchiato-ice.jpg' : '/images/caramel-macchiato-hot.jpg';
+  }
+  // 바닐라라떼
+  else if (menuNameLower.includes('바닐라') || menuNameLower.includes('vanilla')) {
+    return temp === 'ICE' ? '/images/vanilla-latte-ice.jpg' : '/images/vanilla-latte-hot.jpg';
+  }
+  // 에스프레소 (HOT만)
+  else if (menuNameLower.includes('에스프레소') || menuNameLower.includes('espresso')) {
+    return '/images/espresso-hot.jpg';
+  }
+  // 콜드브루 (ICE만)
+  else if (menuNameLower.includes('콜드브루') || menuNameLower.includes('cold brew') || menuNameLower.includes('coldbrew')) {
+    return '/images/cold-brew-ice.jpg';
+  }
+  // 기본 이미지
+  else {
+    return '/images/default-coffee.jpg';
+  }
+}
+
 // 메뉴 목록 로드
 async function loadMenus() {
   try {
@@ -77,12 +118,32 @@ function displayMenus(menus) {
       `;
     }
 
+    // 초기 이미지 경로 결정 (라디오 버튼의 checked 속성과 정확히 동일한 로직 사용)
+    // 라디오 버튼 로직: 
+    // - HOT: hasHot && !hasIce ? 'checked' : hasHot && hasIce ? '' : ''
+    // - ICE: hasIce && !hasHot ? 'checked' : hasHot && hasIce ? 'checked' : ''
+    let initialTemp;
+    if (hasHot && !hasIce) {
+      initialTemp = 'HOT';  // HOT만 있으면 HOT이 checked
+    } else if (hasIce && !hasHot) {
+      initialTemp = 'ICE';  // ICE만 있으면 ICE가 checked
+    } else if (hasHot && hasIce) {
+      initialTemp = 'ICE';  // 둘 다 있으면 ICE가 checked (기본값)
+    } else {
+      initialTemp = 'ICE';  // 기본값
+    }
+    const imagePath = getMenuImagePath(menu.name, initialTemp, initialTemp);
+    
+    // 초기 가격 계산 (ICE면 +500원)
+    const initialPrice = initialTemp === 'ICE' ? menu.price + 500 : menu.price;
+    
     return `
       <div class="menu-item" data-menu-id="${menu.menu_id}">
-        <div class="menu-image"></div>
+        <div class="menu-image">
+          <img src="${imagePath}" alt="${menuDisplayName}" onerror="this.style.display='none'; this.parentElement.classList.add('no-image');">
+        </div>
         <h3>${menuDisplayName}</h3>
-        <div class="menu-price">${menu.price.toLocaleString()}원</div>
-        <div class="menu-description">간단한 설명...</div>
+        <div class="menu-price">${initialPrice.toLocaleString()}원</div>
         <div class="menu-options">
           ${temperatureOptions}
           ${extraOptions}
@@ -103,6 +164,74 @@ function displayMenus(menus) {
       }
     });
   });
+
+  // 온도 선택에 따라 이미지 업데이트 (모든 메뉴에 적용)
+  menus.forEach(menu => {
+    const tempRadios = menuList.querySelectorAll(`input[name="temp-${menu.menu_id}"]`);
+    const menuItem = menuList.querySelector(`[data-menu-id="${menu.menu_id}"]`);
+    const menuImage = menuItem ? menuItem.querySelector('.menu-image img') : null;
+    const menuImageContainer = menuItem ? menuItem.querySelector('.menu-image') : null;
+    
+    if (tempRadios && tempRadios.length > 0 && menuImage && menuImageContainer) {
+      // 메뉴명 및 가격 요소 찾기
+      const menuTitle = menuItem ? menuItem.querySelector('h3') : null;
+      const menuPrice = menuItem ? menuItem.querySelector('.menu-price') : null;
+      
+      // 초기 선택된 라디오 버튼에 맞춰 이미지, 메뉴명, 가격 설정
+      const checkedRadio = Array.from(tempRadios).find(radio => radio.checked);
+      if (checkedRadio) {
+        const initialTemp = checkedRadio.value;
+        const initialImagePath = getMenuImagePath(menu.name, initialTemp);
+        menuImage.src = initialImagePath;
+        // 이미지 표시 상태 확실히 설정
+        menuImage.style.display = '';
+        menuImageContainer.classList.remove('no-image');
+        
+        // 초기 메뉴명 설정
+        if (menuTitle) {
+          menuTitle.textContent = `${menu.name}(${initialTemp})`;
+        }
+        
+        // 초기 가격 설정 (ICE면 +500원)
+        if (menuPrice) {
+          const initialPrice = initialTemp === 'ICE' ? menu.price + 500 : menu.price;
+          menuPrice.textContent = `${initialPrice.toLocaleString()}원`;
+        }
+      }
+      
+      // 온도 변경 시 이미지, 메뉴명, 가격 업데이트
+      tempRadios.forEach(radio => {
+        radio.addEventListener('change', (e) => {
+          if (e.target.checked) {
+            const selectedTemp = e.target.value;
+            // 이미지 표시 상태 복원
+            menuImage.style.display = '';
+            menuImageContainer.classList.remove('no-image');
+            
+            // 이미지 경로 업데이트 (강제로 다시 로드)
+            const newImagePath = getMenuImagePath(menu.name, selectedTemp);
+            // 이미지를 강제로 다시 로드하기 위해 src를 먼저 비우고 다시 설정
+            menuImage.src = '';
+            // 다음 프레임에서 새 이미지 로드
+            setTimeout(() => {
+              menuImage.src = newImagePath;
+            }, 0);
+            
+            // 메뉴명 업데이트
+            if (menuTitle) {
+              menuTitle.textContent = `${menu.name}(${selectedTemp})`;
+            }
+            
+            // 가격 업데이트 (ICE면 +500원)
+            if (menuPrice) {
+              const newPrice = selectedTemp === 'ICE' ? menu.price + 500 : menu.price;
+              menuPrice.textContent = `${newPrice.toLocaleString()}원`;
+            }
+          }
+        });
+      });
+    }
+  });
 }
 
 // 장바구니에 추가
@@ -121,6 +250,10 @@ function addToCart(menu, menuId) {
     const tempValue = temperature.value;
     options.push(tempValue);
     displayName = `${menu.name}(${tempValue})`;
+    // ICE면 추가 가격 500원
+    if (tempValue === 'ICE') {
+      additionalPrice += 500;
+    }
   }
 
   // 추가 옵션
@@ -231,6 +364,16 @@ async function submitOrder() {
     return;
   }
 
+  // 로그인 확인
+  const user = getUser();
+  if (!user) {
+    showError('주문하려면 로그인이 필요합니다.');
+    if (confirm('로그인 페이지로 이동하시겠습니까?')) {
+      window.location.href = '/login';
+    }
+    return;
+  }
+
   try {
     const orderItems = cart.map(item => {
       const optionsObj = {};
@@ -250,7 +393,7 @@ async function submitOrder() {
     });
 
     const response = await api.post('/orders', {
-      user_id: 1, // 임시 사용자 ID
+      user_id: user.user_id, // 인증된 사용자 ID 사용
       items: orderItems
     });
 
@@ -258,7 +401,7 @@ async function submitOrder() {
     cart = [];
     updateCart();
   } catch (error) {
-    showError('주문 처리 중 오류가 발생했습니다.');
+    showError(error.message || '주문 처리 중 오류가 발생했습니다.');
     console.error(error);
   }
 }

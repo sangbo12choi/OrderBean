@@ -111,20 +111,31 @@ h4 {
 .menu-image {
     width: 100%;
     height: 200px;
-    background-color: #f0f0f0;
-    border: 1px dashed #ccc;
+    background-color: #fff;
     border-radius: 4px;
+    margin-bottom: 1rem;
+    position: relative;
+    overflow: hidden;
     display: flex;
     align-items: center;
     justify-content: center;
-    margin-bottom: 1rem;
-    position: relative;
 }
 
-.menu-image::before {
+.menu-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 4px;
+}
+
+.menu-image.no-image::before {
     content: '📷';
     font-size: 3rem;
     color: #999;
+}
+
+.menu-image.no-image {
+    border: 1px dashed #ccc;
 }
 
 .menu-item h3 {

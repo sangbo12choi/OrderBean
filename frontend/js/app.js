@@ -1,6 +1,9 @@
 // API Base URL
 const API_BASE_URL = 'http://localhost:3000/api';
 
+// auth.js가 로드되기 전에 API_BASE_URL이 정의되어야 함
+// auth.js에서 이 변수를 사용함
+
 // Utility Functions
 const api = {
   async get(url) {
