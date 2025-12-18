@@ -15,10 +15,12 @@ app.use(express.urlencoded({ extended: true }));
 const menuRoutes = require('./routes/menus');
 const orderRoutes = require('./routes/orders');
 const adminRoutes = require('./routes/admin');
+const authRoutes = require('./routes/auth');
 
 app.use('/api/menus', menuRoutes);
 app.use('/api/orders', orderRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/auth', authRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -39,6 +41,14 @@ app.get('/orders', (req, res) => {
 
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, '../frontend/html/admin.html'));
+});
+
+app.get('/login', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/html/login.html'));
+});
+
+app.get('/register', (req, res) => {
+  res.sendFile(path.join(__dirname, '../frontend/html/register.html'));
 });
 
 // Start server only if not in test environment

@@ -104,11 +104,5 @@ if (document.getElementById('load-orders')) {
   loadOrders(1);
 }
 
-// 주문하기 버튼 이벤트
-const submitOrderBtn = document.getElementById('submit-order');
-if (submitOrderBtn) {
-  submitOrderBtn.addEventListener('click', () => {
-    createOrder(1); // 기본 사용자 ID
-  });
-}
+// 주문하기 버튼 이벤트는 menu.js에서 처리됨
 
