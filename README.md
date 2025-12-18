@@ -435,12 +435,30 @@ GREEN단계 시작
     - `getConfigValue()` 헬퍼 함수 추가로 안전한 설정 값 접근
     - 모든 HTML 파일에 `config.js` 로드 추가
 
-- [ ] **DOM 조작 최적화**
+- [x] **DOM 조작 최적화**
   - 이벤트 위임 적용
   - 반복적인 DOM 쿼리 최소화
   - `innerHTML` 대신 DOM API 사용 고려
   - 예상 시간: 2시간
   - 파일: `frontend/js/menu.js`, `frontend/js/admin.js`
+  - 완료일: 2025-01-27
+  - 변경 사항:
+    - **이벤트 위임 적용**:
+      - `menu.js`: 담기 버튼, 온도 변경 이벤트를 부모 요소에 위임
+      - `admin.js`: 재고 버튼, 메뉴 삭제 버튼, 주문 상태 업데이트 버튼 이벤트 위임
+      - 각 이벤트 핸들러는 한 번만 등록되도록 플래그 사용
+    - **DOM 요소 캐싱**:
+      - `menu.js`: 장바구니 DOM 요소 캐싱 (`cartDOMCache`)
+      - `admin.js`: 대시보드 통계 DOM 요소 캐싱 (`adminDOMCache`)
+      - 반복적인 `getElementById` 호출 제거
+    - **innerHTML 대신 DOM API 사용**:
+      - `menu.js`: `createMenuCardElement()` - DOM API로 메뉴 카드 생성
+      - `menu.js`: `createCartItemElement()` - DOM API로 장바구니 아이템 생성
+      - `admin.js`: `createInventoryCardElement()` - DOM API로 재고 카드 생성
+      - `admin.js`: `createAdminMenuCardElement()` - DOM API로 관리자 메뉴 카드 생성
+      - `admin.js`: `createOrderCardElement()`, `createOrderItemElement()` - DOM API로 주문 카드 생성
+    - **인라인 이벤트 핸들러 제거**: 모든 `onclick` 속성을 `data-*` 속성과 이벤트 위임으로 대체
+    - **메뉴 데이터 캐싱**: 이벤트 위임에서 사용할 메뉴 데이터를 `menusCache`에 저장
 
 - [ ] **이벤트 리스너 관리 개선**
   - 인라인 이벤트 핸들러 제거 (`onclick` 속성)
@@ -498,9 +516,9 @@ GREEN단계 시작
 ### 📊 진행 상황
 
 - **총 작업 항목**: 15개
-- **완료**: 5개
+- **완료**: 6개
 - **진행 중**: 0개
-- **대기 중**: 10개
+- **대기 중**: 9개
 
 ### 📝 참고 사항
 

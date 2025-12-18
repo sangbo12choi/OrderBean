@@ -115,6 +115,9 @@ const MenuCacheManager = (function() {
 // 페이지 로드 시 초기화
 if (document.getElementById('admin-section')) {
   initAdminDashboard();
+  setupInventoryEventDelegation();
+  setupDeleteMenuEventDelegation();
+  setupUpdateStatusEventDelegation();
 }
 
 // 관리자 대시보드 초기화
@@ -172,10 +175,11 @@ async function loadDashboardStats() {
 
 // 대시보드 통계 업데이트
 function updateDashboardStats(stats) {
-  document.getElementById('stat-total').textContent = stats.total;
-  document.getElementById('stat-pending').textContent = stats.pending;
-  document.getElementById('stat-processing').textContent = stats.processing;
-  document.getElementById('stat-completed').textContent = stats.completed;
+  initAdminDOMCache();
+  if (adminDOMCache.statTotal) adminDOMCache.statTotal.textContent = stats.total;
+  if (adminDOMCache.statPending) adminDOMCache.statPending.textContent = stats.pending;
+  if (adminDOMCache.statProcessing) adminDOMCache.statProcessing.textContent = stats.processing;
+  if (adminDOMCache.statCompleted) adminDOMCache.statCompleted.textContent = stats.completed;
 }
 
 // 통계 카드 클릭 이벤트 초기화
@@ -224,46 +228,84 @@ async function loadInventory() {
   }
 }
 
+// 재고 카드 DOM 요소 생성
+function createInventoryCardElement(menu) {
+  const inventory = InventoryManager.get(menu.menu_id);
+  const stock = inventory.stock;
+  const threshold = getConfigValue('INVENTORY.LOW_STOCK_THRESHOLD', 5);
+  const lowStock = stock < threshold;
+  
+  // 메뉴명에 온도 표시
+  const options = menu.options || [];
+  const hasHot = options.includes('HOT');
+  const hasIce = options.includes('ICE');
+  let displayName = menu.name;
+  if (hasHot && hasIce) {
+    displayName = `${menu.name}(ICE)`;
+  } else if (hasHot) {
+    displayName = `${menu.name}(HOT)`;
+  } else if (hasIce) {
+    displayName = `${menu.name}(ICE)`;
+  }
+  
+  const card = document.createElement('div');
+  card.className = `inventory-card ${lowStock ? 'low-stock' : ''}`;
+  card.setAttribute('data-menu-id', menu.menu_id);
+  
+  const nameDiv = document.createElement('div');
+  nameDiv.className = 'inventory-card-name';
+  nameDiv.textContent = displayName;
+  
+  const stockDiv = document.createElement('div');
+  stockDiv.className = 'inventory-card-stock';
+  stockDiv.textContent = `${stock}개`;
+  
+  const actionsDiv = document.createElement('div');
+  actionsDiv.className = 'inventory-card-actions';
+  
+  const decreaseBtn = document.createElement('button');
+  decreaseBtn.className = 'inventory-btn decrease';
+  decreaseBtn.setAttribute('data-menu-id', menu.menu_id);
+  decreaseBtn.setAttribute('data-action', 'decrease');
+  decreaseBtn.textContent = '-';
+  if (stock <= 0) decreaseBtn.disabled = true;
+  
+  const increaseBtn = document.createElement('button');
+  increaseBtn.className = 'inventory-btn increase';
+  increaseBtn.setAttribute('data-menu-id', menu.menu_id);
+  increaseBtn.setAttribute('data-action', 'increase');
+  increaseBtn.textContent = '+';
+  
+  actionsDiv.appendChild(decreaseBtn);
+  actionsDiv.appendChild(increaseBtn);
+  
+  card.appendChild(nameDiv);
+  card.appendChild(stockDiv);
+  card.appendChild(actionsDiv);
+  
+  return card;
+}
+
 // 재고 현황 표시
 function displayInventory(menus) {
   const inventoryList = document.getElementById('inventory-list');
   if (!inventoryList) return;
   
+  // 기존 내용 제거
+  inventoryList.textContent = '';
+  
   if (menus.length === 0) {
-    inventoryList.innerHTML = '<p>등록된 메뉴가 없습니다.</p>';
+    const emptyMsg = document.createElement('p');
+    emptyMsg.textContent = '등록된 메뉴가 없습니다.';
+    inventoryList.appendChild(emptyMsg);
     return;
   }
   
-  inventoryList.innerHTML = menus.map(menu => {
-    const inventory = InventoryManager.get(menu.menu_id);
-    const stock = inventory.stock;
-    const threshold = getConfigValue('INVENTORY.LOW_STOCK_THRESHOLD', 5);
-    const lowStock = stock < threshold;
-    
-    // 메뉴명에 온도 표시
-    const options = menu.options || [];
-    const hasHot = options.includes('HOT');
-    const hasIce = options.includes('ICE');
-    let displayName = menu.name;
-    if (hasHot && hasIce) {
-      displayName = `${menu.name}(ICE)`;
-    } else if (hasHot) {
-      displayName = `${menu.name}(HOT)`;
-    } else if (hasIce) {
-      displayName = `${menu.name}(ICE)`;
-    }
-    
-    return `
-      <div class="inventory-card ${lowStock ? 'low-stock' : ''}" data-menu-id="${menu.menu_id}">
-        <div class="inventory-card-name">${displayName}</div>
-        <div class="inventory-card-stock">${stock}개</div>
-        <div class="inventory-card-actions">
-          <button class="inventory-btn decrease" onclick="updateInventory(${menu.menu_id}, -1)" ${stock <= 0 ? 'disabled' : ''}>-</button>
-          <button class="inventory-btn increase" onclick="updateInventory(${menu.menu_id}, 1)">+</button>
-        </div>
-      </div>
-    `;
-  }).join('');
+  // DOM API를 사용하여 재고 카드 생성
+  menus.forEach(menu => {
+    const card = createInventoryCardElement(menu);
+    inventoryList.appendChild(card);
+  });
 }
 
 // 재고 수량 업데이트
@@ -327,32 +369,68 @@ async function loadMenusAdmin() {
   }
 }
 
+// 관리자 메뉴 카드 DOM 요소 생성
+function createAdminMenuCardElement(menu) {
+  const card = document.createElement('div');
+  card.className = 'order-card';
+  
+  const header = document.createElement('div');
+  header.className = 'order-header';
+  
+  const leftDiv = document.createElement('div');
+  const title = document.createElement('h3');
+  title.textContent = menu.name;
+  const price = document.createElement('div');
+  price.className = 'menu-price';
+  price.textContent = `${menu.price.toLocaleString()}원`;
+  leftDiv.appendChild(title);
+  leftDiv.appendChild(price);
+  
+  const rightDiv = document.createElement('div');
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'btn-danger';
+  deleteBtn.setAttribute('data-menu-id', menu.menu_id);
+  deleteBtn.setAttribute('data-action', 'delete-menu');
+  deleteBtn.textContent = '삭제';
+  rightDiv.appendChild(deleteBtn);
+  
+  header.appendChild(leftDiv);
+  header.appendChild(rightDiv);
+  
+  const optionsDiv = document.createElement('div');
+  const optionsP = document.createElement('p');
+  const optionsStrong = document.createElement('strong');
+  optionsStrong.textContent = '옵션: ';
+  optionsP.appendChild(optionsStrong);
+  optionsP.appendChild(document.createTextNode(menu.options.join(', ')));
+  optionsDiv.appendChild(optionsP);
+  
+  card.appendChild(header);
+  card.appendChild(optionsDiv);
+  
+  return card;
+}
+
 // 메뉴 관리 - 메뉴 목록 표시
 function displayMenusAdmin(menus) {
   const menuList = document.getElementById('menu-list-admin');
   if (!menuList) return;
 
+  // 기존 내용 제거
+  menuList.textContent = '';
+
   if (menus.length === 0) {
-    menuList.innerHTML = '<p>등록된 메뉴가 없습니다.</p>';
+    const emptyMsg = document.createElement('p');
+    emptyMsg.textContent = '등록된 메뉴가 없습니다.';
+    menuList.appendChild(emptyMsg);
     return;
   }
 
-  menuList.innerHTML = menus.map(menu => `
-    <div class="order-card">
-      <div class="order-header">
-        <div>
-          <h3>${menu.name}</h3>
-          <div class="menu-price">${menu.price.toLocaleString()}원</div>
-        </div>
-        <div>
-          <button class="btn-danger" onclick="deleteMenu(${menu.menu_id})">삭제</button>
-        </div>
-      </div>
-      <div>
-        <p><strong>옵션:</strong> ${menu.options.join(', ')}</p>
-      </div>
-    </div>
-  `).join('');
+  // DOM API를 사용하여 메뉴 카드 생성
+  menus.forEach(menu => {
+    const card = createAdminMenuCardElement(menu);
+    menuList.appendChild(card);
+  });
 }
 
 // 메뉴 등록
@@ -421,13 +499,131 @@ async function loadOrdersAdmin() {
   }
 }
 
+// 주문 항목 DOM 요소 생성
+function createOrderItemElement(item) {
+  const menu = MenuCacheManager.get(item.menu_id);
+  const menuName = menu ? menu.name : `메뉴 ID: ${item.menu_id}`;
+  const options = item.options || {};
+  
+  // 옵션 텍스트 생성
+  const extraOptions = [];
+  if (options.temperature) {
+    extraOptions.push(options.temperature);
+  }
+  if (options.shot) {
+    extraOptions.push('샷 추가');
+  }
+  if (options.syrup) {
+    extraOptions.push('시럽 추가');
+  }
+  
+  const optionsText = extraOptions.length > 0 ? ` (${extraOptions.join(', ')})` : '';
+  const quantity = item.quantity || 1;
+  
+  const itemDiv = document.createElement('div');
+  itemDiv.className = 'order-item-admin';
+  itemDiv.textContent = `${menuName}${optionsText} x ${quantity}`;
+  
+  return itemDiv;
+}
+
+// 주문 카드 DOM 요소 생성
+function createOrderCardElement(order) {
+  const orderDate = new Date(order.created_at);
+  const dateStr = orderDate.toLocaleDateString('ko-KR', { 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  const timeStr = orderDate.toLocaleTimeString('ko-KR', { 
+    hour: '2-digit', 
+    minute: '2-digit' 
+  });
+  
+  // 총 가격 계산
+  const totalPrice = order.total_price || order.items.reduce((sum, item) => {
+    const menu = MenuCacheManager.get(item.menu_id);
+    const itemPrice = menu ? menu.price : (item.price || 4000);
+    const quantity = item.quantity || 1;
+    return sum + itemPrice * quantity;
+  }, 0);
+
+  // 상태별 버튼 텍스트 및 클래스
+  let buttonText = '주문 접수';
+  let buttonClass = 'order-action-btn';
+  
+  if (order.status === '접수') {
+    buttonText = '제조 시작';
+    buttonClass += ' processing';
+  } else if (order.status === '제조중') {
+    buttonText = '제조 완료';
+    buttonClass += ' completed';
+  } else if (order.status === '완료') {
+    buttonText = '완료됨';
+    buttonClass += ' completed';
+  }
+
+  const card = document.createElement('div');
+  card.className = 'order-card-admin';
+  card.setAttribute('data-order-status', order.status);
+  
+  const header = document.createElement('div');
+  header.className = 'order-card-admin-header';
+  
+  const leftDiv = document.createElement('div');
+  const dateTimeDiv = document.createElement('div');
+  dateTimeDiv.className = 'order-date-time';
+  dateTimeDiv.textContent = `${dateStr} ${timeStr}`;
+  
+  const itemsListDiv = document.createElement('div');
+  itemsListDiv.className = 'order-items-list';
+  order.items.forEach(item => {
+    itemsListDiv.appendChild(createOrderItemElement(item));
+  });
+  
+  const priceDiv = document.createElement('div');
+  priceDiv.className = 'order-price';
+  priceDiv.textContent = `${totalPrice.toLocaleString()}원`;
+  
+  leftDiv.appendChild(dateTimeDiv);
+  leftDiv.appendChild(itemsListDiv);
+  leftDiv.appendChild(priceDiv);
+  
+  const rightDiv = document.createElement('div');
+  if (order.status !== '완료') {
+    const button = document.createElement('button');
+    button.className = buttonClass;
+    button.setAttribute('data-order-id', order.order_id);
+    button.setAttribute('data-action', 'update-status');
+    button.setAttribute('data-next-status', getNextStatus(order.status));
+    button.textContent = buttonText;
+    rightDiv.appendChild(button);
+  } else {
+    const span = document.createElement('span');
+    span.style.color = '#27ae60';
+    span.style.fontWeight = 'bold';
+    span.textContent = '완료됨';
+    rightDiv.appendChild(span);
+  }
+  
+  header.appendChild(leftDiv);
+  header.appendChild(rightDiv);
+  card.appendChild(header);
+  
+  return card;
+}
+
 // 주문 관리 - 주문 목록 표시
 function displayOrdersAdmin(orders) {
   const ordersList = document.getElementById('orders-list-admin');
   if (!ordersList) return;
 
+  // 기존 내용 제거
+  ordersList.textContent = '';
+
   if (orders.length === 0) {
-    ordersList.innerHTML = '<p>주문이 없습니다.</p>';
+    const emptyMsg = document.createElement('p');
+    emptyMsg.textContent = '주문이 없습니다.';
+    ordersList.appendChild(emptyMsg);
     return;
   }
 
@@ -436,90 +632,11 @@ function displayOrdersAdmin(orders) {
     return new Date(b.created_at) - new Date(a.created_at);
   });
 
-  ordersList.innerHTML = sortedOrders.map(order => {
-    // 주문 날짜/시간 포맷팅
-    const orderDate = new Date(order.created_at);
-    const dateStr = orderDate.toLocaleDateString('ko-KR', { 
-      month: 'long', 
-      day: 'numeric' 
-    });
-    const timeStr = orderDate.toLocaleTimeString('ko-KR', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
-    
-    // 주문 항목 표시
-    const itemsHtml = order.items.map(item => {
-      const menu = MenuCacheManager.get(item.menu_id);
-      const menuName = menu ? menu.name : `메뉴 ID: ${item.menu_id}`;
-      const options = item.options || {};
-      
-      // 옵션 텍스트 생성
-      const extraOptions = [];
-      if (options.temperature) {
-        extraOptions.push(options.temperature);
-      }
-      if (options.shot) {
-        extraOptions.push('샷 추가');
-      }
-      if (options.syrup) {
-        extraOptions.push('시럽 추가');
-      }
-      
-      const optionsText = extraOptions.length > 0 ? ` (${extraOptions.join(', ')})` : '';
-      const quantity = item.quantity || 1;
-      const itemPrice = menu ? menu.price : (item.price || 4000);
-      
-      return `
-        <div class="order-item-admin">
-          ${menuName}${optionsText} x ${quantity}
-        </div>
-      `;
-    }).join('');
-
-    // 총 가격 계산
-    const totalPrice = order.total_price || order.items.reduce((sum, item) => {
-      const menu = MenuCacheManager.get(item.menu_id);
-      const itemPrice = menu ? menu.price : (item.price || 4000);
-      const quantity = item.quantity || 1;
-      return sum + itemPrice * quantity;
-    }, 0);
-
-    // 상태별 버튼 텍스트 및 클래스
-    let buttonText = '주문 접수';
-    let buttonClass = 'order-action-btn';
-    
-    if (order.status === '접수') {
-      buttonText = '제조 시작';
-      buttonClass += ' processing';
-    } else if (order.status === '제조중') {
-      buttonText = '제조 완료';
-      buttonClass += ' completed';
-    } else if (order.status === '완료') {
-      buttonText = '완료됨';
-      buttonClass += ' completed';
-    }
-
-    return `
-      <div class="order-card-admin" data-order-status="${order.status}">
-        <div class="order-card-admin-header">
-          <div>
-            <div class="order-date-time">${dateStr} ${timeStr}</div>
-            <div class="order-items-list">
-              ${itemsHtml}
-            </div>
-            <div class="order-price">${totalPrice.toLocaleString()}원</div>
-          </div>
-          <div>
-            ${order.status !== '완료' 
-              ? `<button class="${buttonClass}" onclick="updateOrderStatus(${order.order_id}, '${getNextStatus(order.status)}')">${buttonText}</button>`
-              : '<span style="color: #27ae60; font-weight: bold;">완료됨</span>'
-            }
-          </div>
-        </div>
-      </div>
-    `;
-  }).join('');
+  // DOM API를 사용하여 주문 카드 생성
+  sortedOrders.forEach(order => {
+    const card = createOrderCardElement(order);
+    ordersList.appendChild(card);
+  });
 }
 
 // 다음 상태 반환
@@ -535,14 +652,8 @@ function getNextStatus(currentStatus) {
 // 주문 상태 변경
 async function updateOrderStatus(orderId, newStatus) {
   if (!newStatus) {
-    // 기존 방식 지원 (select에서 가져오기)
-    const select = document.getElementById(`status-select-${orderId}`);
-    if (select) {
-      newStatus = select.value;
-    } else {
-      showError('주문 상태를 선택해주세요.');
-      return;
-    }
+    showError('주문 상태를 선택해주세요.');
+    return;
   }
 
   try {
@@ -554,6 +665,25 @@ async function updateOrderStatus(orderId, newStatus) {
     loadOrdersAdmin();
   } catch (error) {
     ErrorHandler.handle(error, '주문 상태 변경');
+  }
+}
+
+// 주문 상태 업데이트 이벤트 위임 설정
+let updateStatusHandlerAttached = false;
+function setupUpdateStatusEventDelegation() {
+  if (updateStatusHandlerAttached) return;
+  updateStatusHandlerAttached = true;
+  
+  const ordersList = document.getElementById('orders-list-admin');
+  if (ordersList) {
+    ordersList.addEventListener('click', (e) => {
+      const btn = e.target.closest('[data-action="update-status"]');
+      if (btn && btn.dataset.orderId && btn.dataset.nextStatus) {
+        const orderId = parseInt(btn.dataset.orderId);
+        const newStatus = btn.dataset.nextStatus;
+        updateOrderStatus(orderId, newStatus);
+      }
+    });
   }
 }
 
